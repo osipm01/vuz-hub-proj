@@ -30,6 +30,10 @@ class User(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
+    telegram_id: Mapped[int] = mapped_column(String)
+    VK_id: Mapped[int] = mapped_column(String)
+    MAX_id: Mapped[int] = mapped_column(Integer)
+
     # Связи
     group: Mapped[Optional["Group"]] = relationship(back_populates="users")
     debts: Mapped[List["Debt"]] = relationship(back_populates="user", cascade="all, delete-orphan")
