@@ -1,5 +1,4 @@
 from typing import Optional, Sequence, Dict
-from enum import Enum
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError  # важно: не sqlite3
@@ -8,12 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from schemas.user_schema import UserCreate, UserUpdate
 from models.models import User
-
-
-class SocialNetworkLinkType(Enum):
-    VK = "vk"
-    MAX_id = "max_id"
-    TG_ID = "tg_id"
+from enums.user_enums import SocialNetworkLinkType
 
 
 # Соответствие: тип соцсети -> имя поля в модели User
