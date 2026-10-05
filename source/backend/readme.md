@@ -1,4 +1,4 @@
-# 📚 Документация проекта VuxHub
+# 📚 Документация проекта VuzHub
 
 > Ниже — документация **по уже реализованному проекту**.  
 > Конфиг на текущий момент хранится прямо в `.py`-файле (`core/config.py`) без использования `.env`.
@@ -30,7 +30,6 @@ project/
 
 | Параметр | Тип | Значение по умолчанию | Назначение |
 |---|---|---|---|
-| `AUTH_CHECK_URL` | `str` | `https://localhost:3100/api/users/check-auth-by-token` | URL сервиса проверки авторизации по токену |
 | `SECRET_JWT_KEY` | `str` | `qwert` | Секретный ключ для JWT |
 | `DB_HOST` | `str` | `localhost` | Хост PostgreSQL |
 | `DB_PORT` | `int` | `5432` | Порт PostgreSQL |
@@ -283,7 +282,6 @@ uvicorn main:app --reload
 ```
 
 - Swagger UI → `http://localhost:8000/docs`
-- ReDoc → `http://localhost:8000/redoc`
 
 ---
 
