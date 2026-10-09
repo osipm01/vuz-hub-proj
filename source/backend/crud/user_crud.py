@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Sequence, Dict
 
 from sqlalchemy import select
@@ -9,7 +10,7 @@ from schemas.user_schema import UserCreate, UserUpdate
 from models.models import User
 from enums.user_enums import SocialNetworkLinkType
 
-
+logger = logging.getLogger(__name__)
 # Соответствие: тип соцсети -> имя поля в модели User
 _SOCIAL_FIELD_MAP: Dict[SocialNetworkLinkType, str] = {
     SocialNetworkLinkType.VK: "VK_id",
@@ -58,6 +59,10 @@ async def get_user_by_social(
     """Находит пользователя по id в конкретной соцсети."""
     field = _SOCIAL_FIELD_MAP[link_type]
     stmt = select(User).where(getattr(User, field) == social_id)
+    """
+    setattr(user, field, int(social_id))
+    над таким форматом подумай
+    """
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -104,18 +109,18 @@ async def update_user(
     for field, value in update_data.items():
         setattr(user, field, value)
 
-    db.add(user)
+    #db.add(user) у нас обьект уже же должен быть привязан к бд
 
     try:
         await db.commit()
         await db.refresh(user)
     except IntegrityError as e:
         await db.rollback()
-        print(f"DB IntegrityError in update_user: {e}")
-        return None          # либо: raise ValueError(...) from e
+        logger.error(f"DB IntegrityError in update_user: {e}")
+        raise ValueError("Не удалось обновить пользователя (дубликат данных)") from e
     except Exception as e:
         await db.rollback()
-        print(f"Unexpected error in update_user: {e}")
+        logger.exception(f"Unexpected error in update_user: {e}")
         raise
 
     return user
@@ -143,18 +148,19 @@ async def link_social(
         )
 
     setattr(user, field, social_id)
-    db.add(user)
+    #db.add(user) таже причина
 
     try:
         await db.commit()
         await db.refresh(user)
     except IntegrityError as e:
         await db.rollback()
-        print(f"DB IntegrityError in link_social: {e}")
-        return None          # либо: raise ValueError(...) from e
+        logger.error(f"DB IntegrityError in link_social: {e}")
+        raise ValueError(
+            f"Этот {link_type.value} ID уже был привязан другим пользователем") from e
     except Exception as e:
         await db.rollback()
-        print(f"Unexpected error in link_social: {e}")
+        logger.exception(f"Unexpected error in link_social: {e}")
         raise
 
     return user
@@ -168,15 +174,15 @@ async def unlink_social(
     """Отвязывает аккаунт соцсети от пользователя."""
     field = _SOCIAL_FIELD_MAP[link_type]
     setattr(user, field, None)
-    db.add(user)
+    #db.add(user)
 
     try:
         await db.commit()
         await db.refresh(user)
     except IntegrityError as e:
         await db.rollback()
-        print(f"DB IntegrityError in unlink_social: {e}")
-        return None
+        logger.error(f"DB IntegrityError in unlink_social: {e}")
+        raise ValueError("Невозможно отвязать соцсеть (поле не может быть NULL)") from e
     except Exception as e:
         await db.rollback()
         print(f"Unexpected error in unlink_social: {e}")
@@ -212,11 +218,11 @@ async def delete_user(db: AsyncSession, user: User) -> bool:
         await db.commit()
     except IntegrityError as e:
         await db.rollback()
-        print(f"DB IntegrityError in delete_user: {e}")
-        return False
+        logger.error(f"DB IntegrityError in delete_user: {e}")
+        raise ValueError("Невозможно удалить пользователя: существуют связанные записи") from e
     except Exception as e:
         await db.rollback()
-        print(f"Unexpected error in delete_user: {e}")
+        logger.exception(f"Unexpected error in delete_user: {e}")
         raise
 
     return True
