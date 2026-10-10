@@ -4,7 +4,7 @@ from typing import Optional, Sequence, Dict
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError  # важно: не sqlite3
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 
 from schemas.user_schema import UserCreate, UserUpdate
 from models.models import User
@@ -21,7 +21,7 @@ _SOCIAL_FIELD_MAP: Dict[SocialNetworkLinkType, str] = {
 
 # ---------- CREATE ----------
 
-async def create_user(db: AsyncSession, data: UserCreate) -> Optional[User]:
+async def create_user(db: AsyncSession, data: UserCreate) -> User:
     user = User(**data.model_dump())
     db.add(user)
 
@@ -30,20 +30,22 @@ async def create_user(db: AsyncSession, data: UserCreate) -> Optional[User]:
         await db.refresh(user)
     except IntegrityError as e:
         await db.rollback()
-        print(f"DB IntegrityError in create_user: {e}")
-        return None
+        logger.exception("Ошибка целостности БД в create_user, data=%r", data)
+        raise e
     except Exception as e:
         await db.rollback()
-        print(f"Unexpected error in create_user: {e}")
-        raise
+        logger.exception("Неожиданная ошибка в create_user, data=%r", data)
+        raise e
 
     return user
 
 
-
 async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
     result = await db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+    user = result.scalar_one_or_none()
+    if user is None:
+        logger.info("Пользователь не найден: id=%s", user_id)
+    return user
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
@@ -62,6 +64,9 @@ async def get_user_by_social(
     """
     setattr(user, field, int(social_id))
     над таким форматом подумай
+    
+    setattr - можно но возникает риск уронить все при неверных типах 
+    
     """
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
@@ -75,17 +80,18 @@ async def get_user_with_relations(
         select(User)
         .where(User.id == user_id)
         .options(
-            selectinload(User.group),
-            selectinload(User.debts),
+            joinedload(User.group),          # many-to-one → JOIN
+            selectinload(User.debts),        # коллекции → отдельные SELECT ... IN
             selectinload(User.user_subjects),
             selectinload(User.dops),
         )
     )
     result = await db.execute(stmt)
-    return result.scalar_one_or_none()
+    user = result.scalar_one_or_none()
+    if user is None:
+        logger.info("Пользователь не найден (со связями): id=%s", user_id)
+    return user
 
-
-# ---------- READ (списки) ----------
 
 async def get_users(
     db: AsyncSession,
@@ -93,9 +99,16 @@ async def get_users(
     limit: int = 100,
     group_id: Optional[int] = None,
 ) -> Sequence[User]:
-    stmt = select(User).offset(skip).limit(limit).order_by(User.id)
+    if skip < 0 or limit <= 0:
+        raise ValueError(f"Некорректные параметры пагинации: skip={skip}, limit={limit}")
+
+    logger.debug("get_users: skip=%s limit=%s group_id=%s", skip, limit, group_id)
+
+    stmt = select(User).order_by(User.id)
     if group_id is not None:
         stmt = stmt.where(User.group_id == group_id)
+    stmt = stmt.offset(skip).limit(limit)
+
     result = await db.execute(stmt)
     return result.scalars().all()
 
