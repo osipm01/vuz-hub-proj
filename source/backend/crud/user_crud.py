@@ -21,7 +21,7 @@ _SOCIAL_FIELD_MAP: Dict[SocialNetworkLinkType, str] = {
 }
 
 
-class UserRepository:
+class UserCRUD:
     """Синглтон-репозиторий для работы с пользователями."""
 
     _instance: Optional["UserRepository"] = None
@@ -410,4 +410,4 @@ class UserRepository:
 
 
 # Готовый синглтон-экземпляр для импорта
-user_repo = UserRepository()
+user_crud = UserCRUD()
