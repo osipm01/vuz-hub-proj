@@ -408,6 +408,14 @@ class UserCRUD:
         logger.info("delete_user: удалён user.id=%s", user.id)
         return True
 
+    def get_social_field(self, link_type: SocialNetworkLinkType) -> str:
+        """Публичный геттер имени поля модели по типу соцсети."""
+        try:
+            return self._social_field_map[link_type]
+        except KeyError as e:
+            logger.error("get_social_field: неизвестный link_type=%s", link_type)
+            raise ValueError(f"Неизвестный тип соцсети: {link_type!r}") from e
+
 
 # Готовый синглтон-экземпляр для импорта
 user_crud = UserCRUD()
