@@ -1,3 +1,4 @@
+# ревью провел +
 import logging
 from typing import Optional, Sequence
 
