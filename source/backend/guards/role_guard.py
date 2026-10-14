@@ -1,48 +1,61 @@
-from core.config import settings
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from typing import List
+from collections.abc import Sequence
+from typing import Optional
+
 import jwt
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+
+from core.config import settings
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
 
-ALGORITHM = "HS256"
-
-# Автоматически ищет заголовок "Authorization: Bearer <токен>"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-async def get_current_role(token: str = Depends(oauth2_scheme)) -> str:
-    # Ошибка валидации токена -> 401
-    credentials_exception = HTTPException(
+def _unauthorized(detail: str) -> HTTPException:
+    return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Не удалось валидировать учетные данные",
+        detail=detail,
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+
+async def get_token(
+    request: Request,
+    header_token: Optional[str] = Depends(oauth2_scheme),
+) -> str:
+    # 1) Сначала httponly-cookie
+    token = request.cookies.get(settings.SECRET_JWT_KEY)
+
+    # 2) Если cookie нет — берём из заголовка (fallback для старых клиентов)
+    if not token:
+        token = header_token
+
+    if not token:
+        raise _unauthorized("Токен не найден ни в cookie, ни в заголовке")
+
+    return token
+
+
+async def get_current_role(token: str = Depends(get_token)) -> str:
     try:
-        payload = jwt.decode(token, settings.SECRET_JWT_KEY, algorithms=[ALGORITHM])
-        role: str | None = payload.get("role")
+        payload = jwt.decode(token, settings.SECRET_JWT_KEY, algorithms=[settings.ALGORITHM])
+    except ExpiredSignatureError:
+        raise _unauthorized("Срок действия токена истек")
+    except InvalidTokenError:
+        raise _unauthorized("Не удалось валидировать учетные данные")
 
-        if role is None:
-            raise credentials_exception
+    role = payload.get("role")
+    if not isinstance(role, str) or not role:
+        raise _unauthorized("В токене отсутствует роль")
 
-        return role
-
-    except jwt.ExpiredSignatureError:
-        # Истёкший access token -> 401
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Срок действия токена истек",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidTokenError:
-        # Любая другая проблема с токеном -> 401
-        raise credentials_exception
+    return role
 
 
-def role_guard(allowed_roles: List[str]):
-    async def role_dependency(user_role: str = Depends(get_current_role)):
-        # Токен валиден, но роли не хватает -> 403
-        if user_role not in allowed_roles:
+def role_guard(allowed_roles: Sequence[str]):
+    allowed = frozenset(allowed_roles)
+
+    async def role_dependency(user_role: str = Depends(get_current_role)) -> str:
+        if user_role not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Доступ запрещен: недостаточно прав",

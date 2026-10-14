@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     DB_USER: str = "postgres"
     DB_PASSWORD: str = "admin"
     DB_NAME: str = "vuzhubbd"
+    ALGORITHM: str = "HS256"
 
     @property
     def DATABASE_URL(self) -> str:
