@@ -1,3 +1,7 @@
+# todo убрать лишние _ в названиях не должно быть типа _instane или instane_
+# todo добавить более строеую типищацию
+
+
 import logging
 from typing import Optional, Sequence
 
