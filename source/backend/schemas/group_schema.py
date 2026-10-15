@@ -11,3 +11,7 @@ class GroupRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
+
+class GroupReading(GroupCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: int

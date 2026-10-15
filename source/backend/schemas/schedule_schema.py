@@ -1,7 +1,7 @@
 # schemas/schedule_schema.py
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ScheduleCreate(BaseModel):
@@ -17,3 +17,7 @@ class ScheduleUpdate(BaseModel):
     weekday: int | None = None
     start_time: datetime | None = None
     classroom: str | None = None
+
+class ScheduleRead(ScheduleCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: int

@@ -178,3 +178,7 @@ class SocialLinksPatchResult(BaseModel):
     updated: list[SocialNetworkLinkType] = Field(default_factory=list)
     skipped: list[SocialNetworkLinkType] = Field(default_factory=list)
     errors: dict[str, str] = Field(default_factory=dict)
+
+class UserRead(UserCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: int

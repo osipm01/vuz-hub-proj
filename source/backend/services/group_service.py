@@ -54,6 +54,15 @@ class GroupService:
             )
         return group
 
+    async def get_group_by_name_or_404(self, db: AsyncSession, name: str) -> Group:
+        group: Optional[Group] = await self.crud.get_group_by_name(db, name)
+        if group is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Группа с именем={name!r} не найдена",
+            )
+        return group
+
     async def get_group_with_relations_or_404(
         self, db: AsyncSession, group_id: int
     ) -> Group:
