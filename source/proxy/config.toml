@@ -1,0 +1,16 @@
+# Адрес, на котором слушает прокси
+listen = "127.0.0.1:8080"
+
+# Таймаут ожидания ответа (заголовков) от upstream, секунды
+upstream_timeout_secs = 30
+
+# Маршруты. Выбирается самый длинный подходящий префикс.
+[[routes]]
+prefix = "/api"
+upstream = "http://127.0.0.1:3000"
+strip_prefix = true   # /api/users -> http://127.0.0.1:3000/users
+
+[[routes]]
+prefix = "/"
+upstream = "http://127.0.0.1:4000"
+strip_prefix = false
