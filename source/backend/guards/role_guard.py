@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Coroutine, Sequence
-from enum import Enum
-from typing import Any, Final, TypedDict
+from typing import Any, Final
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
@@ -11,30 +10,19 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError, PyJWTError
 
 from core.config import settings
+from enums.auth_type_enum import AuthType
+from interfaces.token_paylod import TokenPayload
+from interfaces.auth_headers import (
+    AUTH_HEADER,
+    BOT_HEADER,
+    INTEGRATION_HEADER,
+    CLIENT_HEADER,
+    WWW_AUTHENTICATE_BEARER
+)
 
 logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
-
-AUTH_HEADER: Final[str] = "x-auth-type"
-BOT_HEADER: Final[str] = "x-bot-token"
-INTEGRATION_HEADER: Final[str] = "x-integration-key"
-CLIENT_HEADER: Final[str] = "x-auth-token"
-
-WWW_AUTHENTICATE_BEARER: Final[dict[str, str]] = {"WWW-Authenticate": "Bearer"}
-
-
-class AuthType(str, Enum):
-    BOT = "BOT"
-    INTEGRATION = "INTEGRATION"
-    CLIENT = "client"
-
-
-class TokenPayload(TypedDict, total=False):
-    sub: str
-    role: str
-    exp: int
-    iat: int
 
 
 def unauthorized(detail: str) -> HTTPException:
