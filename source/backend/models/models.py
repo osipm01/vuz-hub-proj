@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import BigInteger, Integer
+
+from enums.user_enums import UserRole
 
 class Base(DeclarativeBase):
     pass
@@ -30,8 +32,8 @@ class User(Base):
         Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    role: Mapped[UserRole] = mapped_column(String, nullable=False, default=UserRole.USER)
 
-    #я не думаю что айдишник в телеги такие простые,у макс то понятно там до 10 ели считают
     telegram_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True, nullable=True)
     VK_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True, nullable=True)
     MAX_id: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
