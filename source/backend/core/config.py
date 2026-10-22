@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     )
 
     SECRET_JWT_KEY: str = "qwert"
+    ACCESS_TOKEN_COOKIE_NAME: str = "access_token"
 
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432

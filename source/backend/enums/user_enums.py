@@ -10,4 +10,4 @@ class SocialNetworkLinkType(str, Enum):
 class UserRole(str, Enum):
     USER = "user"
     ADMIN = "admin"
-    MANAGER = "manager"   # убери/добавь по необходимости
+    DISPATCHER = "dispatcher"

@@ -107,7 +107,7 @@ async def get_user(
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
     summary="Создать пользователя",
-    dependencies=[Depends(role_guard([UserRole.ADMIN], {AuthType.CLIENT}))],
+    # dependencies=[Depends(role_guard([UserRole.ADMIN], {AuthType.CLIENT}))],
 )
 async def create_user(
     data: UserCreate,
