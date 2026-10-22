@@ -14,6 +14,8 @@ from exceptions import (
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
 
+BOT_HEADER: Final[str] = "x-bot-token"
+
 
 class ApiClient:
     """Async HTTP-клиент к бэкенду. Singleton."""
@@ -32,7 +34,10 @@ class ApiClient:
         self._client = httpx.AsyncClient(
             base_url=config.api_base_url,
             timeout=config.api_timeout,
-            headers={"Accept": "application/json"},
+            headers={
+                "Accept": "application/json",
+                BOT_HEADER: config.bot_token,
+            },
         )
         self.__class__.initialized = True
 
