@@ -1,23 +1,39 @@
 name: Pylint
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
-  build:
+  pylint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        # Оставили только самые свежие версии Python
+        python-version: ["3.13", "3.14"]
+      # fail-fast: false позволяет увидеть результаты для обеих версий, 
+      # даже если одна из них упадет. Если хотите экономить ресурсы — замените на true.
+      fail-fast: false 
+
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+        cache: 'pip'
+
+    - name: Install Pylint
       run: |
         python -m pip install --upgrade pip
         pip install pylint
+
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py')
+        FILES=$(git ls-files '*.py')
+        if [ -n "$FILES" ]; then
+          # --jobs=0 включает параллельный анализ на всех доступных ядрах процессора,
+          # что значительно ускоряет проверку и тратит меньше платных минут GitHub.
+          pylint --jobs=0 $FILES
+        else
+          echo "Python-файлы не найдены."
+        fi
