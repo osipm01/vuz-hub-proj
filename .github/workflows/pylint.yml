@@ -7,10 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Оставили только самые свежие версии Python
         python-version: ["3.13", "3.14"]
-      # fail-fast: false позволяет увидеть результаты для обеих версий, 
-      # даже если одна из них упадет. Если хотите экономить ресурсы — замените на true.
       fail-fast: false 
 
     steps:
@@ -20,7 +17,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        cache: 'pip'
+        # Удалена строка cache: 'pip', которая вызывала ошибку
 
     - name: Install Pylint
       run: |
@@ -31,8 +28,6 @@ jobs:
       run: |
         FILES=$(git ls-files '*.py')
         if [ -n "$FILES" ]; then
-          # --jobs=0 включает параллельный анализ на всех доступных ядрах процессора,
-          # что значительно ускоряет проверку и тратит меньше платных минут GitHub.
           pylint --jobs=0 $FILES
         else
           echo "Python-файлы не найдены."
