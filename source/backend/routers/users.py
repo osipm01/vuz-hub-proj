@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_async_db
 from enums.auth_type_enum import AuthType
 from enums.user_enums import SocialNetworkLinkType, UserRole
-from role_guard import Principal, get_principal, role_guard
+from guards.role_guard import Principal, get_principal, role_guard
 from schemas.user_schema import (
     SocialLinkRequest,
     SocialLinksResponse,

@@ -11,7 +11,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError, PyJWTError
 
 from core.config import settings
-from data_validation import (
+from guards.data_validation import (
     BotTokenPayload,
     IntegrationTokenPayload,
     validation_bot_token,
