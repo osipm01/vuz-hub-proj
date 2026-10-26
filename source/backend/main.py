@@ -8,6 +8,7 @@ from routers import (
     subjects,
     users,
     user_subjects,
+    auth_router
 )
 
 app = FastAPI(title="My API", version="0.1.0")
@@ -25,3 +26,4 @@ app.include_router(schedules.router, prefix="/schedules", tags=["Schedules"])
 app.include_router(subjects.router, prefix="/subjects", tags=["Subjects"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
 app.include_router(user_subjects.router, prefix="/user-subjects", tags=["User-Subjects"])
+app.include_router(auth_router.router, prefix="/auth", tags=["Auth"])
