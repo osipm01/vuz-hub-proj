@@ -9,6 +9,8 @@ class Settings(BaseSettings):
 
     SECRET_JWT_KEY: str = "qwert"
     ACCESS_TOKEN_COOKIE_NAME: str = "access_token"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432
