@@ -16,9 +16,15 @@ class UserBase(BaseModel):
     email: EmailStr
     group_id: Optional[int] = None
 
-
-class UserCreate(UserBase):
-    """Создание пользователя. Роль назначается сервисом (по умолчанию USER)."""
+class UserCreate(BaseModel):
+    email: EmailStr
+    name: str
+    password: Optional[str] = None
+    role: Optional[str] = None
+    group_id: Optional[int] = None
+    telegram_id: Optional[int] = None
+    VK_id: Optional[int] = None
+    MAX_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):

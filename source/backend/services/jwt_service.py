@@ -49,7 +49,7 @@ class JWTService:
 
         to_encode: dict[str, Any] = {
             "sub": str(user_id),  # str для совместимости с _parse_sub из core.auth
-            "role": role.value,
+            "role": role.value if hasattr(role, "value") else role,
             "exp": expire,
             "iat": datetime.now(timezone.utc),
         }

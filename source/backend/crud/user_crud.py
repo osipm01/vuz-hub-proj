@@ -38,14 +38,33 @@ class UserCRUD:
 
     # ---------- CREATE ----------
 
+    # ---------- CREATE ----------
+
     async def create_user(
-        self,
-        db: AsyncSession,
-        data: UserCreate,
-        role: UserRole = UserRole.USER,
+            self,
+            db: AsyncSession,
+            data: UserCreate,
+            role: UserRole = UserRole.USER,
     ) -> User:
         logger.debug("create_user: email=%r role=%s", data.email, role.value)
-        user = User(**data.model_dump(), role=role)
+
+        # 1. Извлекаем данные из схемы, исключая password (так как в БД поле называется hashed_password)
+        #    и exclude={"role"}, чтобы избежать дублирования роли
+        user_data = data.model_dump(exclude={"password", "role"})
+
+        # 2. Хешируем пароль через наш обновленный JWT-сервис, если он передан в схеме
+        hashed_pwd = None
+        if hasattr(data, "password") and data.password:
+            from services.jwt_service import jwt_service  # Импортируем локально, если нет вверху файла
+            hashed_pwd = jwt_service.hash_password(data.password)
+
+        # 3. Передаем данные в конструктор модели SQLAlchemy с правильным именем поля
+        user = User(
+            **user_data,
+            role=role,
+            hashed_password=hashed_pwd
+        )
+
         db.add(user)
 
         try:

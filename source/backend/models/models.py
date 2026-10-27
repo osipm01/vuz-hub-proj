@@ -31,6 +31,8 @@ class User(Base):
     group_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True
     )
+    hashed_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     role: Mapped[UserRole] = mapped_column(String, nullable=False, default=UserRole.USER)
 
