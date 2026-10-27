@@ -192,7 +192,7 @@ class AuthService:
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "user_id": user.id,
-            "role": user.role.value,
+            "role": user.role.value if hasattr(user.role, "value") else user.role,
         }
 
     async def authenticate_by_email(
