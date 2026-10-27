@@ -147,63 +147,89 @@ class AuthService:
 
 
     async def register_user(
-                self,
-                db: AsyncSession,
-                email: str,
-                password: str,
-                full_name: str | None = None,
-        ) -> dict[str, str | int]:
-            """
-            Регистрация нового пользователя с email и паролем.
-            """
-            logger.debug("register_user: попытка регистрации email=%r", email)
+            self,
+            db: AsyncSession,
+            email: str,
+            password: str,
+            full_name: str | None = None,
+    ) -> dict[str, str | int]:
+        logger.debug("register_user: попытка регистрации email=%r", email)
 
-            # Проверка, что email еще не занят
-            existing = await self.crud.get_user_by_email(db, email=email)
-            if existing is not None:
-                logger.info("register_user: email уже занят email=%r", email)
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Пользователь с email={email} уже существует",
-                )
+        existing = await self.crud.get_user_by_email(db, email=email)
+        if existing is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Пользователь с email={email} уже существует",
+            )
 
-            # Хеширование пароля
-            hashed_password = self.jwt.hash_password(password)
+        hashed_password = self.jwt.hash_password(password)
 
-            # Создание пользователя
-            create_data = {
-                "email": email,
-                "hashed_password": hashed_password,
-                "role": UserRole.USER.value,
-            }
-            if full_name:
-                create_data["full_name"] = full_name
+        # ✅ name обязателен; full_name либо email как fallback
+        create_data = {
+            "email": email,
+            "name": full_name or email.split("@")[0],
+            "password": hashed_password,  # ✅ имя поля как в модели
+            "role": UserRole.USER.value,
+        }
 
-            try:
-                user = await self.crud.create_user(
-                    db,
-                    data=UserCreate(**create_data),
-                    role=UserRole.USER,
-                )
-            except Exception as exc:
-                logger.exception("register_user: crud упал email=%r", email)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Не удалось зарегистрировать пользователя",
-                ) from exc
+        try:
+            user = await self.crud.create_user(
+                db, data=UserCreate(**create_data), role=UserRole.USER,
+            )
+        except Exception as exc:
+            logger.exception("register_user: crud упал email=%r", email)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Не удалось зарегистрировать пользователя",
+            ) from exc
 
-            # Генерация токенов
-            access_token = self.jwt.create_access_token(user_id=user.id, role=user.role)
-            refresh_token = self.jwt.create_refresh_token(user_id=user.id)
+        access_token = self.jwt.create_access_token(user_id=user.id, role=user.role)
+        refresh_token = self.jwt.create_refresh_token(user_id=user.id)
 
-            logger.info("register_user: создан user.id=%s email=%r", user.id, email)
-            return {
-                "access_token": access_token,
-                "refresh_token": refresh_token,
-                "token_type": "bearer",
-                "user_id": user.id,
-                "role": user.role.value,
-            }
+        logger.info("register_user: создан user.id=%s email=%r", user.id, email)
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user_id": user.id,
+            "role": user.role.value,
+        }
+
+    async def authenticate_by_email(
+            self, db: AsyncSession, email: str, password: str
+    ) -> dict[str, str | int]:
+        logger.debug("authenticate_by_email: попытка входа email=%r", email)
+
+        user = await self.crud.get_user_by_email(db, email=email)
+
+        # ✅ .password вместо .hashed_password
+        if user is None or not user.password:
+            logger.warning("authenticate_by_email: пользователь не найден/без пароля email=%r", email)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверный email или пароль",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if not self.jwt.verify_password(password, user.password):
+            logger.warning("authenticate_by_email: неверный пароль email=%r", email)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверный email или пароль",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        access_token = self.jwt.create_access_token(user_id=user.id, role=user.role)
+        refresh_token = self.jwt.create_refresh_token(user_id=user.id)
+
+        logger.info("authenticate_by_email: успешный вход user.id=%s", user.id)
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user_id": user.id,
+            "role": user.role.value,
+        }
 
 
 auth_service: Final[AuthService] = AuthService()
