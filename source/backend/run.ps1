@@ -16,10 +16,10 @@ $Services = @("monolith", "auth-service", "study-service", "finance-service", "i
 
 # Маппинг сервис -> порт
 $Ports = @{
-    "monolith"          = 8000
-    "auth-service"      = 8001
-    "study-service"     = 8002
-    "finance-service"   = 8003
+    "monolith"            = 8000
+    "auth-service"        = 8001
+    "study-service"       = 8002
+    "finance-service"     = 8003
     "integration-service" = 8004
 }
 
@@ -39,7 +39,8 @@ function Show-Usage {
     Write-Host "  help                  Показать эту справку"
     Write-Host ""
     Write-Host "Доступные сервисы:" -ForegroundColor Yellow
-    Write-Host "  $($Services -join ', ')" -ForegroundColor Green
+    $svcList = $Services -join ", "
+    Write-Host "  $svcList" -ForegroundColor Green
     Write-Host ""
     Write-Host "Примеры:" -ForegroundColor Yellow
     Write-Host "  .\run.ps1 up                       # запустить все"
@@ -52,7 +53,8 @@ function Test-Service {
     param([string]$svc)
     if (-not $Services.Contains($svc)) {
         Write-Host "Ошибка: неизвестный сервис '$svc'" -ForegroundColor Red
-        Write-Host "Доступные: $($Services -join ', ')" -ForegroundColor Green
+        $svcList = $Services -join ", "
+        Write-Host "Доступные: $svcList" -ForegroundColor Green
         exit 1
     }
 }
@@ -63,7 +65,8 @@ function Invoke-Build {
         Test-Service $svc
         Write-Host "Сборка образа для $svc..." -ForegroundColor Blue
         docker compose build $svc
-    } else {
+    }
+    else {
         Write-Host "Сборка всех образов..." -ForegroundColor Blue
         docker compose build
     }
@@ -75,7 +78,8 @@ function Invoke-Up {
         Test-Service $svc
         Write-Host "Запуск $svc..." -ForegroundColor Green
         docker compose up -d $svc
-    } else {
+    }
+    else {
         Write-Host "Запуск всех сервисов..." -ForegroundColor Green
         docker compose up -d
     }
@@ -92,7 +96,8 @@ function Invoke-Stop {
     if ($svc) {
         Test-Service $svc
         docker compose stop $svc
-    } else {
+    }
+    else {
         docker compose stop
     }
 }
@@ -102,7 +107,8 @@ function Invoke-Restart {
     if ($svc) {
         Test-Service $svc
         docker compose restart $svc
-    } else {
+    }
+    else {
         docker compose restart
     }
 }
@@ -112,7 +118,8 @@ function Invoke-Logs {
     if ($svc) {
         Test-Service $svc
         docker compose logs -f $svc
-    } else {
+    }
+    else {
         docker compose logs -f
     }
 }
@@ -146,7 +153,8 @@ function Invoke-Local {
 
     try {
         uvicorn main:app --host 127.0.0.1 --port $port --reload
-    } finally {
+    }
+    finally {
         Remove-Item Env:\SERVICE_NAME -ErrorAction SilentlyContinue
         Remove-Item Env:\PORT -ErrorAction SilentlyContinue
     }
@@ -159,15 +167,33 @@ if (-not $Command -or $Command -eq "help") {
 }
 
 switch ($Command) {
-    "build"   { Invoke-Build   $Service }
-    "up"      { Invoke-Up      $Service }
-    "down"    { Invoke-Down }
-    "stop"    { Invoke-Stop    $Service }
-    "restart" { Invoke-Restart $Service }
-    "logs"    { Invoke-Logs    $Service }
-    "status"  { Invoke-Status }
-    "clean"   { Invoke-Clean }
-    "local"   { Invoke-Local   $Service }
+    "build" {
+        Invoke-Build $Service
+    }
+    "up" {
+        Invoke-Up $Service
+    }
+    "down" {
+        Invoke-Down
+    }
+    "stop" {
+        Invoke-Stop $Service
+    }
+    "restart" {
+        Invoke-Restart $Service
+    }
+    "logs" {
+        Invoke-Logs $Service
+    }
+    "status" {
+        Invoke-Status
+    }
+    "clean" {
+        Invoke-Clean
+    }
+    "local" {
+        Invoke-Local $Service
+    }
     default {
         Write-Host "Неизвестная команда: $Command" -ForegroundColor Red
         Show-Usage
