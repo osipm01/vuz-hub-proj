@@ -205,5 +205,5 @@ def main() -> None:
     handler(args.service)
 
 
-if __name__ == "__main__":
+if __name__ == "__run__":
     main()
