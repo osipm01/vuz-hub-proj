@@ -1,0 +1,66 @@
+version: "3.9"
+
+x-common: &common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  env_file:
+    - .env
+  networks:
+    - mynet
+
+services:
+  # Монолит — всё в одном контейнере (для разработки / small deploy)
+  monolith:
+    <<: *common
+    container_name: monolith
+    environment:
+      SERVICE_NAME: monolith
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+
+  # Auth-service: авторизация и пользователи
+  auth-service:
+    <<: *common
+    container_name: auth-service
+    environment:
+      SERVICE_NAME: auth-service
+      PORT: "8001"
+    ports:
+      - "8001:8001"
+
+  # Study-service: расписание, группы, предметы
+  study-service:
+    <<: *common
+    container_name: study-service
+    environment:
+      SERVICE_NAME: study-service
+      PORT: "8002"
+    ports:
+      - "8002:8002"
+
+  # Finance-service: долги и доп. услуги
+  finance-service:
+    <<: *common
+    container_name: finance-service
+    environment:
+      SERVICE_NAME: finance-service
+      PORT: "8003"
+    ports:
+      - "8003:8003"
+
+  # Integration-service: интеграции
+  integration-service:
+    <<: *common
+    container_name: integration-service
+    environment:
+      SERVICE_NAME: integration-service
+      PORT: "8004"
+    ports:
+      - "8004:8004"
+
+networks:
+  mynet:
+    driver: bridge
