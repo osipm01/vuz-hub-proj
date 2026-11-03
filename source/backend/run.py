@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Кроссплатформенный скрипт для управления микросервисами."""
+"""Кроссплатформенный скрипт для управления микросервисами через Docker."""
 import argparse
 import os
 import subprocess
@@ -8,7 +8,6 @@ from typing import Optional
 
 # ===== Конфигурация =====
 SERVICES = {
-    "monolith": 8000,
     "auth-service": 8001,
     "study-service": 8002,
     "finance-service": 8003,
@@ -87,7 +86,7 @@ def cmd_up(service: Optional[str]) -> None:
 
 def cmd_down(_: Optional[str]) -> None:
     print(f"{Fore.YELLOW}Остановка и удаление контейнеров...{Style.RESET_ALL}")
-    run(compose_cmd("down"))
+    run(compose_cmd("down", "-v"))
 
 
 def cmd_stop(service: Optional[str]) -> None:
@@ -125,55 +124,71 @@ def cmd_clean(_: Optional[str]) -> None:
     print(f"{Fore.GREEN}Готово.{Style.RESET_ALL}")
 
 
-def cmd_local(service: Optional[str]) -> None:
+def cmd_db(service: Optional[str]) -> None:
+    """Запуск/остановка только базы данных."""
+    db_map = {
+        "auth-service": "auth-db",
+        "study-service": "study-db",
+        "finance-service": "finance-db",
+        "integration-service": "integration-db",
+    }
     if not service:
         print(f"{Fore.RED}Ошибка: укажите сервис{Style.RESET_ALL}")
         sys.exit(1)
     validate_service(service)
+    db_container = db_map.get(service)
+    if not db_container:
+        print(f"{Fore.RED}Неизвестный сервис: {service}{Style.RESET_ALL}")
+        sys.exit(1)
 
-    port = SERVICES[service]
-    print(f"{Fore.BLUE}Локальный запуск {service} на порту {port}{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}SERVICE_NAME={service}, PORT={port}{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}Ctrl+C для остановки{Style.RESET_ALL}")
+    print(f"{Fore.BLUE}Управление БД для {service}: {db_container}{Style.RESET_ALL}")
+    run(compose_cmd("ps", db_container), check=False)
 
-    env = os.environ.copy()
-    env["SERVICE_NAME"] = service
-    env["PORT"] = str(port)
 
-    try:
-        subprocess.run(
-            [
-                sys.executable, "-m", "uvicorn",
-                "main:app",
-                "--host", "127.0.0.1",
-                "--port", str(port),
-                "--reload",
-            ],
-            env=env,
-        )
-    except KeyboardInterrupt:
-        print(f"\n{Fore.YELLOW}Остановлено.{Style.RESET_ALL}")
+def cmd_migrate(service: Optional[str]) -> None:
+    """Запуск миграций Alembic для сервиса."""
+    if not service:
+        print(f"{Fore.RED}Ошибка: укажите сервис{Style.RESET_ALL}")
+        sys.exit(1)
+    validate_service(service)
+    print(f"{Fore.BLUE}Запуск миграций для {service}...{Style.RESET_ALL}")
+    run(compose_cmd("run", "--rm", service, "alembic", "upgrade", "head"))
+
+
+def cmd_shell(service: Optional[str]) -> None:
+    """Открыть shell в контейнере."""
+    if not service:
+        print(f"{Fore.RED}Ошибка: укажите сервис{Style.RESET_ALL}")
+        sys.exit(1)
+    validate_service(service)
+    print(f"{Fore.BLUE}Открытие shell в {service}...{Style.RESET_ALL}")
+    run(compose_cmd("exec", "-it", service, "sh"))
 
 
 # ===== CLI =====
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="run.py",
-        description="Управление микросервисами VuzHub",
+        description="Управление микросервисами VuzHub (Docker)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""Доступные сервисы:
   {', '.join(SERVICES)}
 
 Примеры:
-  python run.py up                       # запустить все
-  python run.py up auth-service          # только auth
+  python run.py up                       # запустить все сервисы + БД
+  python run.py up auth-service          # только auth + его БД
   python run.py logs finance-service     # логи finance
-  python run.py local study-service      # локально на :8002
+  python run.py build                    # пересобрать все образы
+  python run.py down                     # остановить всё
+  python run.py clean                    # полная очистка (с volumes)
+  python run.py migrate auth-service     # запустить миграции
+  python run.py db study-service         # статус БД study
+  python run.py shell integration-service# shell в контейнере
 """,
     )
     parser.add_argument(
         "command",
-        choices=["build", "up", "down", "stop", "restart", "logs", "status", "clean", "local"],
+        choices=["build", "up", "down", "stop", "restart", "logs", "status", "clean", "db", "migrate", "shell"],
         help="Команда для выполнения",
     )
     parser.add_argument(
@@ -198,12 +213,14 @@ def main() -> None:
         "logs": cmd_logs,
         "status": cmd_status,
         "clean": cmd_clean,
-        "local": cmd_local,
+        "db": cmd_db,
+        "migrate": cmd_migrate,
+        "shell": cmd_shell,
     }
 
     handler = dispatch[args.command]
     handler(args.service)
 
 
-
-main()
+if __name__ == "__main__":
+    main()

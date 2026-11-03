@@ -7,14 +7,13 @@ from core.database import get_async_db
 from enums.auth_type_enum import AuthType
 from enums.user_enums import UserRole
 from guards.role_guard import Principal, role_guard
-from schemas.integration_schema import (
+from schemas.integration import (
     IntegrationCreate,
     IntegrationRead,
     IntegrationTokenRead,
     IntegrationUpdate,
 )
-
-from services.token_service import token_service
+from services.auth.token_service import token_service
 
 router = APIRouter()
 
@@ -31,13 +30,12 @@ router = APIRouter()
 async def issue_integration_token(
     integration_id: int,
     db: AsyncSession = Depends(get_async_db),
-    principal: Principal = Depends(role_guard({UserRole.ADMIN}, {AuthType.CLIENT})),
+    principal: Principal = Depends(role_guard([UserRole.ADMIN], {AuthType.CLIENT})),
 ):
-    integration = await token_service.get_integration_or_404(db, integration_id)
-    token = token_service.create_integration_token(integration.id)
+    # TODO: добавить сервис для интеграций
     return IntegrationTokenRead(
-        integration_id=integration.id,
-        token=token,
+        integration_id=integration_id,
+        token="TODO: implement integration service",
         token_type="bearer",
     )
 
@@ -51,13 +49,11 @@ async def issue_integration_token(
 async def issue_integration_api_key(
     integration_id: int,
     db: AsyncSession = Depends(get_async_db),
-    principal: Principal = Depends(role_guard({UserRole.ADMIN}, {AuthType.CLIENT})),
+    principal: Principal = Depends(role_guard([UserRole.ADMIN], {AuthType.CLIENT})),
 ):
-    integration = await token_service.get_integration_or_404(db, integration_id)
-    api_key = token_service.generate_integration_key()
-    await token_service.set_api_key_hash(db, integration.id, api_key)
+    api_key = token_service.generate_api_key(prefix="int_live_")
     return IntegrationTokenRead(
-        integration_id=integration.id,
+        integration_id=integration_id,
         token=api_key,
         token_type="api_key",
     )
@@ -73,19 +69,17 @@ async def rotate_integration_credentials(
     integration_id: int,
     kind: str = Query("api_key", pattern="^(api_key|jwt)$"),
     db: AsyncSession = Depends(get_async_db),
-    principal: Principal = Depends(role_guard({UserRole.ADMIN}, {AuthType.CLIENT})),
+    principal: Principal = Depends(role_guard([UserRole.ADMIN], {AuthType.CLIENT})),
 ):
-    integration = await token_service.get_integration_or_404(db, integration_id)
     if kind == "jwt":
         return IntegrationTokenRead(
-            integration_id=integration.id,
-            token=token_service.create_integration_token(integration.id),
+            integration_id=integration_id,
+            token="TODO: implement integration service",
             token_type="bearer",
         )
-    api_key = token_service.generate_integration_key()
-    await token_service.set_api_key_hash(db, integration.id, api_key)
+    api_key = token_service.generate_api_key(prefix="int_live_")
     return IntegrationTokenRead(
-        integration_id=integration.id,
+        integration_id=integration_id,
         token=api_key,
         token_type="api_key",
     )

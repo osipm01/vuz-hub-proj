@@ -1,17 +1,55 @@
 __pycache__
 *.pyc
 *.pyo
-.venv
-venv
+*.pyd
+.Python
 env
+venv
+env/
+.venv
+
 .git
 .gitignore
+.gitattributes
+
 .idea
 .vscode
-*.md
-.env
-.dockerignore
-Dockerfile
-docker-compose*.yml
+*.swp
+*.swo
+
 .pytest_cache
 .mypy_cache
+.ruff_cache
+
+# Документация (не нужны в образе)
+*.md
+!README.md
+
+# Docker файлы (не нужны внутри образа)
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+docker-compose*.yaml
+.dockerignore
+
+# Локальные .env файлы (включая .env.auth, .env.study и т.д.)
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+.pycover
+.mypy_history
+.tox/
+.kitchen/
+
+# OS
+.DS_Store
+Thumbs.db
