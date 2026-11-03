@@ -1,7 +1,7 @@
-from .group_schema import *
-from .subject_schema import *
-from .schedule_schema import *
-from .user_subject_schema import *
+from .study_schema import GroupCreate, GroupUpdate, GroupRead, GroupReading
+from .study_schema import SubjectCreate, SubjectUpdate, SubjectRead
+from .study_schema import ScheduleCreate, ScheduleUpdate, ScheduleRead
+from .study_schema import UserSubjectCreate, UserSubjectRead
 
 __all__ = [
     "GroupCreate", "GroupUpdate", "GroupRead", "GroupReading",

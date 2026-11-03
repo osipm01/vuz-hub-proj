@@ -6,9 +6,9 @@ from typing import Final
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.auth import user_crud
+from crud.auth.user_crud import user_crud
 from enums.user_enums import SocialNetworkLinkType, UserRole
-from schemas.auth import UserCreate
+from schemas.auth.user_schema import UserCreate
 from services.auth.jwt_service import jwt_service
 
 logger = logging.getLogger(__name__)

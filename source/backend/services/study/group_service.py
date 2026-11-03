@@ -1,11 +1,11 @@
 import logging
-from typing import Any, ClassVar, Optional, Sequence, Self
+from typing import ClassVar, Optional, Sequence, Self
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.study import group_crud
-from schemas.study import GroupCreate, GroupUpdate
+from crud.study.group_crud import group_crud
+from schemas.study.study_schema import GroupCreate, GroupUpdate
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class GroupService:
         self, db: AsyncSession, group_id: int, data: GroupUpdate
     ):
         group = await self.get_group_or_404(db, group_id)
-        update_data: dict[str, Any] = data.model_dump(exclude_unset=True)
+        update_data: dict = data.model_dump(exclude_unset=True)
         new_name = update_data.get("name")
         if new_name is not None and new_name != group.name:
             existing = await self.crud.get_group_by_name(db, new_name)

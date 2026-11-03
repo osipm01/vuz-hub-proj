@@ -5,8 +5,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.study import schedule_crud
-from schemas.study import ScheduleCreate, ScheduleUpdate
+from crud.study.schedule_crud import schedule_crud
+from schemas.study.study_schema import ScheduleCreate, ScheduleUpdate
 
 logger: logging.Logger = logging.getLogger(__name__)
 

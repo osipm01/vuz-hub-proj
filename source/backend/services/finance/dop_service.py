@@ -4,8 +4,8 @@ from typing import ClassVar, Final, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.finance import dop_crud
-from schemas.finance import DopCreate, DopUpdate
+from crud.finance.dop_crud import dop_crud
+from schemas.finance.finance_schema import DopCreate, DopUpdate
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
 

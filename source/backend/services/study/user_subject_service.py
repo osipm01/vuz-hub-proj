@@ -4,8 +4,8 @@ from typing import Optional, Sequence
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.study import user_subject_crud
-from schemas.study import UserSubjectCreate
+from crud.study.user_subject_crud import user_subject_crud
+from schemas.study.study_schema import UserSubjectCreate
 
 logger = logging.getLogger(__name__)
 

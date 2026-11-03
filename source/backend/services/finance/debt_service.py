@@ -4,8 +4,8 @@ from typing import ClassVar, Final, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.finance import debt_crud
-from schemas.finance import DebtCreate, DebtUpdate
+from crud.finance.debt_crud import debt_crud
+from schemas.finance.finance_schema import DebtCreate, DebtUpdate
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
 
