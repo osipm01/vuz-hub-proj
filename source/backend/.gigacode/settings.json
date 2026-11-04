@@ -4,7 +4,10 @@
       "Bash(mkdir *)",
       "Bash(dir *)",
       "Bash(del *)",
-      "Bash(docker compose ps)"
+      "Bash(docker compose ps)",
+      "Bash(docker compose down)",
+      "Bash(docker compose build)",
+      "Bash(docker compose up *)"
     ]
   },
   "$version": 3
