@@ -4,7 +4,6 @@ from typing import Optional, Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from models.finance import Dop
 from schemas.finance import DopCreate, DopUpdate
@@ -65,7 +64,7 @@ class DopCRUD:
 
     async def get_dop_with_user(self, db: AsyncSession, dop_id: int) -> Optional[Dop]:
         logger.debug("get_dop_with_user: id=%s", dop_id)
-        stmt = select(Dop).where(Dop.id == dop_id).options(joinedload(Dop.user))
+        stmt = select(Dop).where(Dop.id == dop_id)
         try:
             result = await db.execute(stmt)
             dop = result.scalar_one_or_none()

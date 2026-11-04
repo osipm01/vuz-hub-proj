@@ -1,11 +1,9 @@
-# ревью провел +
 import logging
 from typing import Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from models.finance import Debt
 from schemas.finance import DebtCreate, DebtUpdate
@@ -68,11 +66,7 @@ class DebtCRUD:
         self, db: AsyncSession, debt_id: int
     ) -> Optional[Debt]:
         logger.debug("get_debt_with_relations: id=%s", debt_id)
-        stmt = (
-            select(Debt)
-            .where(Debt.id == debt_id)
-            .options(joinedload(Debt.user), joinedload(Debt.subject))
-        )
+        stmt = select(Debt).where(Debt.id == debt_id)
         try:
             result = await db.execute(stmt)
             debt = result.scalar_one_or_none()

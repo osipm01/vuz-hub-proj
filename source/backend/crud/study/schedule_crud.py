@@ -4,7 +4,6 @@ from typing import Optional, Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from models.study import Schedule
 from schemas.study import ScheduleCreate, ScheduleUpdate
@@ -67,25 +66,15 @@ class ScheduleCRUD:
         self, db: AsyncSession, schedule_id: int
     ) -> Optional[Schedule]:
         logger.debug("get_schedule_with_relations: id=%s", schedule_id)
-        stmt = (
-            select(Schedule)
-            .where(Schedule.id == schedule_id)
-            .options(joinedload(Schedule.group), joinedload(Schedule.subject))
-        )
+        stmt = select(Schedule).where(Schedule.id == schedule_id)
         try:
             result = await db.execute(stmt)
             schedule = result.scalar_one_or_none()
         except SQLAlchemyError as e:
-            logger.exception(
-                "SQLAlchemyError in get_schedule_with_relations: id=%s err=%s",
-                schedule_id, e,
-            )
+            logger.exception("SQLAlchemyError in get_schedule_with_relations: id=%s err=%s", schedule_id, e)
             raise
         except Exception as e:
-            logger.exception(
-                "Unexpected error in get_schedule_with_relations: id=%s err=%s",
-                schedule_id, e,
-            )
+            logger.exception("Unexpected error in get_schedule_with_relations: id=%s err=%s", schedule_id, e)
             raise
         return schedule
 
