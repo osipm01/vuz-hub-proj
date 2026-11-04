@@ -4,7 +4,6 @@ from typing import Optional, Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from models.study import UserSubject
 from schemas.study import UserSubjectCreate
@@ -90,17 +89,11 @@ class UserSubjectCRUD:
     async def get_user_subject_with_relations(
         self, db: AsyncSession, user_id: int, subject_id: int
     ) -> Optional[UserSubject]:
-        logger.debug(
-            "get_user_subject_with_relations: user_id=%s subject_id=%s",
-            user_id, subject_id,
-        )
+        logger.debug("get_user_subject_with_relations: user_id=%s subject_id=%s", user_id, subject_id)
         stmt = (
             select(UserSubject)
-            .where(
-                UserSubject.user_id == user_id,
-                UserSubject.subject_id == subject_id,
-            )
-            .options(joinedload(UserSubject.user), joinedload(UserSubject.subject))
+            .where(UserSubject.user_id == user_id)
+            .where(UserSubject.subject_id == subject_id)
         )
         try:
             result = await db.execute(stmt)
