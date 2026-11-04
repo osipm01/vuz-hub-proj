@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
@@ -33,3 +33,5 @@ class Dop(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     organization_name: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Note: user relationship intentionally NOT defined (User is in auth service)

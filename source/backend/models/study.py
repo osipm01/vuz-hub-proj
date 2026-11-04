@@ -16,9 +16,8 @@ class Group(Base):
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
-    # Связи
     schedules: Mapped[List["Schedule"]] = relationship(
-        back_populates="group", cascade="all, delete-orphan"
+        back_populates="group", cascade="all, delete-orphan", lazy="select"
     )
 
 
@@ -28,12 +27,11 @@ class Subject(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
 
-    # Связи
     schedules: Mapped[List["Schedule"]] = relationship(
-        back_populates="subject", cascade="all, delete-orphan"
+        back_populates="subject", cascade="all, delete-orphan", lazy="select"
     )
     user_subjects: Mapped[List["UserSubject"]] = relationship(
-        back_populates="subject", cascade="all, delete-orphan"
+        back_populates="subject", cascade="all, delete-orphan", lazy="select"
     )
 
 
@@ -51,7 +49,6 @@ class Schedule(Base):
     start_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     classroom: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    # Связи
     group: Mapped["Group"] = relationship(back_populates="schedules")
     subject: Mapped["Subject"] = relationship(back_populates="schedules")
 
@@ -66,5 +63,6 @@ class UserSubject(Base):
         Integer, ForeignKey("subjects.id", ondelete="CASCADE"), primary_key=True
     )
 
-    # Связи
     subject: Mapped["Subject"] = relationship(back_populates="user_subjects")
+
+    # Note: user relationship intentionally NOT defined (User is in auth service)

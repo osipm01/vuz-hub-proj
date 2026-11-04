@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from enums.user_enums import UserRole
 
@@ -29,16 +29,6 @@ class User(Base):
     VK_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True, nullable=True)
     MAX_id: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
 
-    # Связи (lazy='select' avoids eager loading cross-service models)
-    group: Mapped[Optional["Group"]] = relationship(
-        back_populates="users", lazy="select"
-    )
-    debts: Mapped[List["Debt"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan", lazy="select"
-    )
-    user_subjects: Mapped[List["UserSubject"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan", lazy="select"
-    )
-    dops: Mapped[List["Dop"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan", lazy="select"
-    )
+    # Note: relationships to Debt, Dop, UserSubject, Group are intentionally NOT defined here.
+    # Cross-service relationships break SQLAlchemy mapper inspection when models are imported
+    # from different databases. Use explicit queries in services if needed.
