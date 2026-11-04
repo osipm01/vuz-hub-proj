@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_async_db
-from schemas.group_schema import GroupCreate, GroupRead, GroupUpdate
-from services.group_service import group_service
+from schemas.study import GroupCreate, GroupRead, GroupUpdate
+from services.study.group_service import group_service
 
 router = APIRouter()
 

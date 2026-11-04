@@ -1,3 +1,5 @@
+import os
+
 import asyncio
 from logging.config import fileConfig
 
@@ -6,12 +8,26 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from models.models import Base
+from models.base import Base
 
-# 1. Это стандартная настройка логирования Alembic
+
 config = context.config
+
+# !!! ВСТАВЛЯЙТЕ БЛОК СТРОГО СЮДА !!!
+if os.getenv("DB_HOST"):
+    user = os.getenv("DB_USER", "postgres")
+    password = os.getenv("DB_PASSWORD", "admin")
+    host = os.getenv("DB_HOST", "auth-db")
+    port = os.getenv("DB_PORT", "5432")
+    dbname = os.getenv("DB_NAME", "vuzhub_auth")
+
+    docker_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{dbname}"
+    config.set_main_option("sqlalchemy.url", docker_url)
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
 
 # 2. ИМПОРТИРУЙТЕ СЮДА ВАШ METADATA ИЗ ПРОЕКТА
 # Вместо этой строки укажите ваш реальный путь к Base:

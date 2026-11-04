@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_async_db
-from schemas.subject_schema import SubjectCreate, SubjectRead, SubjectUpdate
-from services.subject_service import subject_service
+from schemas.study import SubjectCreate, SubjectRead, SubjectUpdate
+from services.study.subject_service import subject_service
 
 router = APIRouter()
 

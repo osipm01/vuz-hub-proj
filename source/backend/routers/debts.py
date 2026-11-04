@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_async_db
-from schemas.debt_schema import DebtCreate, DebtRead, DebtUpdate
-from services.debt_service import debt_service
+from schemas.finance import DebtCreate, DebtRead, DebtUpdate
+from services.finance.debt_service import debt_service
 
 router = APIRouter()
 

@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_async_db
-from schemas.user_subject_schema import UserSubjectCreate, UserSubjectRead
-from services.user_subject_service import user_subject_service
+from schemas.study import UserSubjectCreate, UserSubjectRead
+from services.study.user_subject_service import user_subject_service
 
 router = APIRouter()
 
@@ -18,23 +18,23 @@ async def list_user_subjects(
     subject_id: Optional[int] = None,
     db: AsyncSession = Depends(get_async_db),
 ):
-    return await user_subject_service.list_user_subjects(
+    return await user_subject_service.list_links(
         db, skip=skip, limit=limit, user_id=user_id, subject_id=subject_id,
     )
 
 
 @router.get("/{user_id}/{subject_id}", response_model=UserSubjectRead, summary="Связь по паре ID")
 async def get_user_subject(user_id: int, subject_id: int, db: AsyncSession = Depends(get_async_db)):
-    return await user_subject_service.get_user_subject_with_relations_or_404(db, user_id, subject_id)
+    return await user_subject_service.get_link_with_relations_or_404(db, user_id, subject_id)
 
 
 @router.post("/", response_model=UserSubjectRead, status_code=status.HTTP_201_CREATED,
              summary="Привязать предмет к пользователю")
 async def create_user_subject(data: UserSubjectCreate, db: AsyncSession = Depends(get_async_db)):
-    return await user_subject_service.create_user_subject(db, data)
+    return await user_subject_service.create_link(db, data)
 
 
 @router.delete("/{user_id}/{subject_id}", status_code=status.HTTP_204_NO_CONTENT,
                summary="Отвязать предмет от пользователя")
 async def delete_user_subject(user_id: int, subject_id: int, db: AsyncSession = Depends(get_async_db)):
-    await user_subject_service.delete_user_subject(db, user_id, subject_id)
+    await user_subject_service.delete_link(db, user_id, subject_id)

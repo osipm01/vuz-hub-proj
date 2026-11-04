@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_async_db
-from schemas.schedule_schema import ScheduleCreate, ScheduleRead, ScheduleUpdate
-from services.schedule_service import schedule_service
+from schemas.study import ScheduleCreate, ScheduleRead, ScheduleUpdate
+from services.study.schedule_service import schedule_service
 
 router = APIRouter()
 
@@ -16,7 +16,7 @@ async def list_schedules(
     limit: int = Query(100, ge=1, le=1000),
     group_id: Optional[int] = None,
     subject_id: Optional[int] = None,
-    weekday: Optional[int] = Query(None, ge=0, le=6),  # если дни 1-7: ge=1, le=7
+    weekday: Optional[int] = Query(None, ge=0, le=6),
     db: AsyncSession = Depends(get_async_db),
 ):
     return await schedule_service.list_schedules(
