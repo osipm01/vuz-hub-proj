@@ -21,8 +21,14 @@ logger = logging.getLogger(__name__)
 #  ENGINE / SESSION  (инициализируются один раз при старте)
 # ------------------------------------------------------------------ #
 
+if settings.SERVICE_NAME != "monolith":
+    database_url = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+else:
+    database_url = settings.DATABASE_URL
+
+# 2. Инициализируем engine с правильным URL
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    database_url, # <-- Передаем вычисленный URL
     echo=False,
     pool_size=20,
     max_overflow=10,
@@ -35,7 +41,6 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
-
 # Базовый класс для моделей
 Base: DeclarativeBase = DeclarativeBase()
 

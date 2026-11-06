@@ -3,15 +3,13 @@ from __future__ import annotations
 import logging
 from typing import Any, Final
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
 from core.config import settings
 from enums.user_enums import UserRole
 
 logger = logging.getLogger(__name__)
-
-_pwd_context: Final[CryptContext] = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class JWTService:
@@ -19,15 +17,25 @@ class JWTService:
 
     def hash_password(self, password: str) -> str:
         try:
-            return _pwd_context.hash(password)
+            # Превращаем пароль в байты, генерируем соль и хешируем
+            pwd_bytes = password.encode("utf-8")
+            salt = bcrypt.gensalt()
+            hashed_bytes = bcrypt.hashpw(pwd_bytes, salt)
+            # Возвращаем строковое представление для сохранения в БД
+            return hashed_bytes.decode("utf-8")
         except Exception:
             logger.exception("hash_password: ошибка хеширования")
             raise
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         try:
-            return _pwd_context.verify(plain_password, hashed_password)
+            # Переводим в байты обе строки и сравниваем безопасным методом checkpw
+            return bcrypt.checkpw(
+                plain_password.encode("utf-8"),
+                hashed_password.encode("utf-8")
+            )
         except Exception:
+            # Возвращаем False при любых ошибках декодирования или несоответствия форматов
             return False
 
     def create_access_token(self, user_id: int, role: UserRole) -> str:
