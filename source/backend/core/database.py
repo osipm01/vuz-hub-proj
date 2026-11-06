@@ -1,13 +1,16 @@
 """
 Асинхронный engine + sessionmaker для SQLAlchemy.
 
-Поддерживает как монолитный запуск (одна БД), так и
-микросервисный (каждый сервис подключается к своей БД
-через settings.DB_HOST / settings.DB_NAME).
+В режиме монолита использует settings.DATABASE_URL напрямую
+(читается из .env или DATABASE_URL из окружения).
+
+В режиме микросервиса динамически конструирует URL из параметров:
+    settings.DB_USER / DB_PASSWORD / DB_HOST / DB_PORT / DB_NAME
 """
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -18,17 +21,41 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------ #
-#  ENGINE / SESSION  (инициализируются один раз при старте)
+#  ДИНАМИЧЕСКАЯ КОНСТРУКЦИЯ DATABASE_URL
 # ------------------------------------------------------------------ #
 
 if settings.SERVICE_NAME != "monolith":
-    database_url = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
-else:
-    database_url = settings.DATABASE_URL
+    # Микросервисный режим: URL конструируется из переменных окружения.
+    # Docker Compose передаёт DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
+    # через environment:, поэтому они доступны через os.environ / settings.
+    _db_user = os.environ.get("DB_USER", settings.DB_USER)
+    _db_pass = os.environ.get("DB_PASSWORD", settings.DB_PASSWORD)
+    _db_host = os.environ.get("DB_HOST", settings.DB_HOST)
+    _db_port = os.environ.get("DB_PORT", str(settings.DB_PORT))
+    _db_name = os.environ.get("DB_NAME", settings.DB_NAME)
 
-# 2. Инициализируем engine с правильным URL
+    database_url = (
+        f"postgresql+asyncpg://{_db_user}:{_db_pass}"
+        f"@{_db_host}:{_db_port}/{_db_name}"
+    )
+    logger.info(
+        "[DATABASE] SERVICE_NAME=%s DB=%s@%s:%s",
+        settings.SERVICE_NAME, _db_name, _db_host, _db_port,
+    )
+else:
+    # Монолитный режим: берём DATABASE_URL из окружения (файл .env или переменная).
+    database_url = settings.DATABASE_URL
+    logger.info(
+        "[DATABASE] SERVICE_NAME=monolith DB=%s:%s/%s",
+        settings.DB_HOST, settings.DB_PORT, settings.DB_NAME,
+    )
+
+# ------------------------------------------------------------------ #
+#  ENGINE / SESSION
+# ------------------------------------------------------------------ #
+
 engine = create_async_engine(
-    database_url, # <-- Передаем вычисленный URL
+    database_url,
     echo=False,
     pool_size=20,
     max_overflow=10,
@@ -41,7 +68,7 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
 )
-# Базовый класс для моделей
+
 Base: DeclarativeBase = DeclarativeBase()
 
 
@@ -56,26 +83,3 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
-
-
-# ------------------------------------------------------------------ #
-#  ENGINE / SESSION  factories  (для микросервисов)
-# ------------------------------------------------------------------ #
-
-def create_service_engine(db_name: str | None = None, db_host: str | None = None):
-    """
-    Создать отдельный engine для микросервиса.
-
-    Если SERVICE_NAME != "monolith" — engine создаётся
-    из settings.DB_HOST / settings.DB_NAME (переопределённых
-    через .env-файл конкретного сервиса).
-    """
-    url = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{db_host or settings.DB_HOST}:{settings.DB_PORT}/{db_name or settings.DB_NAME}"
-    return create_async_engine(
-        url,
-        echo=False,
-        pool_size=10,
-        max_overflow=5,
-        pool_timeout=30,
-        pool_recycle=1800,
-    )
