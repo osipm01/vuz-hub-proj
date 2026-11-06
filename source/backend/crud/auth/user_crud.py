@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Final, Optional, Sequence
+from typing import Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -13,7 +13,7 @@ from schemas.auth import UserCreate, UserUpdate
 
 logger = logging.getLogger(__name__)
 
-_SOCIAL_FIELD_MAP: Final[dict[SocialNetworkLinkType, str]] = {
+_SOCIAL_FIELD_MAP = {
     SocialNetworkLinkType.VK: "VK_id",
     SocialNetworkLinkType.MAX_id: "MAX_id",
     SocialNetworkLinkType.TG_ID: "telegram_id",
@@ -24,7 +24,7 @@ class UserCRUD:
     """Репозиторий пользователей. Используется как модульный синглтон."""
 
     def __init__(self) -> None:
-        self.social_field_map: Final[dict[SocialNetworkLinkType, str]] = _SOCIAL_FIELD_MAP
+        self.social_field_map = _SOCIAL_FIELD_MAP
 
     def get_social_field(self, link_type: SocialNetworkLinkType) -> str:
         try:
@@ -288,4 +288,4 @@ class UserCRUD:
         return True
 
 
-user_crud: Final[UserCRUD] = UserCRUD()
+user_crud = UserCRUD()
