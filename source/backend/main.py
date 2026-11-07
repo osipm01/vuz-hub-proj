@@ -1,5 +1,12 @@
 import os
 from fastapi import FastAPI
+
+# Явный импорт моделей регистрирует все таблицы в едином
+# реестре метаданных SQLAlchemy (Base.metadata). Без этого
+# внешние ключи между таблицами из разных файлов моделей
+# не находятся и приводят к NoReferencedTableError.
+import models  # noqa: F401
+
 from routers import (
     debts,
     dops,

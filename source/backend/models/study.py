@@ -2,11 +2,9 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-
-class Base(DeclarativeBase):
-    pass
+from models.base import Base
 
 
 class Group(Base):

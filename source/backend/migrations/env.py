@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from models.base import Base
+# Импорт всех моделей регистрирует таблицы в Base.metadata,
+# который используется Alembic для генерации миграций.
+import models  # noqa: F401
 
 
 config = context.config

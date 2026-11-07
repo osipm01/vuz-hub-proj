@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import select
 
 from core.database import AsyncSessionLocal
-from models.models import User
+from models.auth import User
 from enums.user_enums import UserRole
 
 

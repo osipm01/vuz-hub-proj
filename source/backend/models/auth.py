@@ -2,13 +2,10 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
 from enums.user_enums import UserRole
-
-
-class Base(DeclarativeBase):
-    pass
+from models.base import Base
 
 
 class User(Base):
