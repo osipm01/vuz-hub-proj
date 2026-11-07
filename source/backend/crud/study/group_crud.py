@@ -30,15 +30,18 @@ class GroupCRUD:
         group = Group(**data.model_dump())
         db.add(group)
         try:
-            async with db.begin():
-                await db.refresh(group)
+            await db.commit()
+            await db.refresh(group)
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in create_group: name=%r err=%s", getattr(data, "name", None), e)
             raise
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in create_group: err=%s", e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in create_group: err=%s", e)
             raise
 
@@ -126,15 +129,18 @@ class GroupCRUD:
             setattr(group, field, value)
 
         try:
-            async with db.begin():
-                await db.refresh(group)
+            await db.commit()
+            await db.refresh(group)
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in update_group: group.id=%s data=%r err=%s", group.id, update_data, e)
             raise ValueError("Не удалось обновить группу (дубликат данных)") from e
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in update_group: group.id=%s err=%s", group.id, e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in update_group: group.id=%s err=%s", group.id, e)
             raise
 
@@ -145,15 +151,17 @@ class GroupCRUD:
         logger.debug("delete_group: group.id=%s", group.id)
         await db.delete(group)
         try:
-            async with db.begin():
-                pass
+            await db.commit()
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in delete_group: group.id=%s err=%s", group.id, e)
             raise ValueError("Невозможно удалить группу: существуют связанные записи") from e
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in delete_group: group.id=%s err=%s", group.id, e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in delete_group: group.id=%s err=%s", group.id, e)
             raise
 

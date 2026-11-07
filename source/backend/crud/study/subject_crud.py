@@ -30,16 +30,19 @@ class SubjectCRUD:
         subject = Subject(**data.model_dump())
         db.add(subject)
         try:
-            async with db.begin():
-                await db.refresh(subject)
+            await db.commit()
+            await db.refresh(subject)
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in create_subject: name=%r err=%s",
                          getattr(data, "name", None), e)
             raise
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in create_subject: err=%s", e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in create_subject: err=%s", e)
             raise
         logger.info("create_subject: создан subject.id=%s name=%r", subject.id, subject.name)
@@ -100,16 +103,19 @@ class SubjectCRUD:
         for field, value in update_data.items():
             setattr(subject, field, value)
         try:
-            async with db.begin():
-                await db.refresh(subject)
+            await db.commit()
+            await db.refresh(subject)
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in update_subject: id=%s data=%r err=%s",
                          subject.id, update_data, e)
             raise ValueError("Не удалось обновить предмет (дубликат данных)") from e
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in update_subject: id=%s err=%s", subject.id, e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in update_subject: id=%s err=%s", subject.id, e)
             raise
         logger.info("update_subject: обновлён subject.id=%s поля=%s",
@@ -120,15 +126,17 @@ class SubjectCRUD:
         logger.debug("delete_subject: subject.id=%s", subject.id)
         await db.delete(subject)
         try:
-            async with db.begin():
-                pass
+            await db.commit()
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in delete_subject: id=%s err=%s", subject.id, e)
             raise ValueError("Невозможно удалить предмет: существуют связанные записи") from e
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in delete_subject: id=%s err=%s", subject.id, e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in delete_subject: id=%s err=%s", subject.id, e)
             raise
         logger.info("delete_subject: удалён subject.id=%s", subject.id)

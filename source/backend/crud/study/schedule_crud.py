@@ -30,15 +30,18 @@ class ScheduleCRUD:
         schedule = Schedule(**data.model_dump())
         db.add(schedule)
         try:
-            async with db.begin():
-                await db.refresh(schedule)
+            await db.commit()
+            await db.refresh(schedule)
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in create_schedule: data=%r err=%s", data, e)
             raise
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in create_schedule: err=%s", e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in create_schedule: err=%s", e)
             raise
         logger.info("create_schedule: создан schedule.id=%s", schedule.id)
@@ -120,16 +123,19 @@ class ScheduleCRUD:
         for field, value in update_data.items():
             setattr(schedule, field, value)
         try:
-            async with db.begin():
-                await db.refresh(schedule)
+            await db.commit()
+            await db.refresh(schedule)
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in update_schedule: id=%s data=%r err=%s",
                          schedule.id, update_data, e)
             raise ValueError("Не удалось обновить расписание (нарушение целостности)") from e
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in update_schedule: id=%s err=%s", schedule.id, e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in update_schedule: id=%s err=%s", schedule.id, e)
             raise
         logger.info("update_schedule: обновлён schedule.id=%s поля=%s",
@@ -140,15 +146,17 @@ class ScheduleCRUD:
         logger.debug("delete_schedule: schedule.id=%s", schedule.id)
         await db.delete(schedule)
         try:
-            async with db.begin():
-                pass
+            await db.commit()
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in delete_schedule: id=%s err=%s", schedule.id, e)
             raise ValueError("Невозможно удалить расписание: связанные записи") from e
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in delete_schedule: id=%s err=%s", schedule.id, e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in delete_schedule: id=%s err=%s", schedule.id, e)
             raise
         logger.info("delete_schedule: удалён schedule.id=%s", schedule.id)

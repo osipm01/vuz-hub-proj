@@ -32,18 +32,21 @@ class UserSubjectCRUD:
         link = UserSubject(**data.model_dump())
         db.add(link)
         try:
-            async with db.begin():
-                await db.refresh(link)
+            await db.commit()
+            await db.refresh(link)
         except IntegrityError as e:
+            await db.rollback()
             logger.error(
                 "IntegrityError in create_user_subject: user_id=%s subject_id=%s err=%s",
                 data.user_id, data.subject_id, e,
             )
             raise
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in create_user_subject: err=%s", e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in create_user_subject: err=%s", e)
             raise
         logger.info(
@@ -146,15 +149,17 @@ class UserSubjectCRUD:
         )
         await db.delete(link)
         try:
-            async with db.begin():
-                pass
+            await db.commit()
         except IntegrityError as e:
+            await db.rollback()
             logger.error("IntegrityError in delete_user_subject: err=%s", e)
             raise ValueError("Невозможно удалить связь: связанные записи") from e
         except SQLAlchemyError as e:
+            await db.rollback()
             logger.exception("SQLAlchemyError in delete_user_subject: err=%s", e)
             raise
         except Exception as e:
+            await db.rollback()
             logger.exception("Unexpected error in delete_user_subject: err=%s", e)
             raise
         logger.info(
