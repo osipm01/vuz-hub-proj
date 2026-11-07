@@ -48,7 +48,7 @@ class AuthService:
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "user_id": user.id,
-            "role": user.role.value,
+            "role": user.role_enum.value,
         }
 
     async def login_or_register_social(
@@ -87,7 +87,7 @@ class AuthService:
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "user_id": user.id,
-            "role": user.role.value if hasattr(user.role, "value") else user.role,
+            "role": user.role_enum.value,
             "is_new_user": is_new_user,
         }
 
@@ -128,7 +128,7 @@ class AuthService:
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "user_id": user.id,
-            "role": user.role.value if hasattr(user.role, "value") else user.role,
+            "role": user.role_enum.value,
         }
 
 

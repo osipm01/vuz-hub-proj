@@ -20,11 +20,18 @@ class User(Base):
     hashed_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False, default=UserRole.USER)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER)
 
     telegram_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True, nullable=True)
     VK_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True, nullable=True)
     MAX_id: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
+
+    @property
+    def role_enum(self) -> UserRole:
+        """Конвертирует строку роли в enum UserRole."""
+        if isinstance(self.role, UserRole):
+            return self.role
+        return UserRole(self.role)
 
     # Note: relationships to Debt, Dop, UserSubject, Group are intentionally NOT defined here.
     # Cross-service relationships break SQLAlchemy mapper inspection when models are imported
