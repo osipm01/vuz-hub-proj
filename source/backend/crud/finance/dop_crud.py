@@ -30,18 +30,15 @@ class DopCRUD:
         dop = Dop(**data.model_dump())
         db.add(dop)
         try:
-            await db.commit()
-            await db.refresh(dop)
+            async with db.begin():
+                await db.refresh(dop)
         except IntegrityError as e:
-            await db.rollback()
             logger.error("IntegrityError in create_dop: data=%r err=%s", data, e)
             raise
         except SQLAlchemyError as e:
-            await db.rollback()
             logger.exception("SQLAlchemyError in create_dop: err=%s", e)
             raise
         except Exception as e:
-            await db.rollback()
             logger.exception("Unexpected error in create_dop: err=%s", e)
             raise
         logger.info("create_dop: создан dop.id=%s user_id=%s", dop.id, dop.user_id)
@@ -112,19 +109,16 @@ class DopCRUD:
         for field, value in update_data.items():
             setattr(dop, field, value)
         try:
-            await db.commit()
-            await db.refresh(dop)
+            async with db.begin():
+                await db.refresh(dop)
         except IntegrityError as e:
-            await db.rollback()
             logger.error("IntegrityError in update_dop: id=%s data=%r err=%s",
                          dop.id, update_data, e)
             raise ValueError("Не удалось обновить запись ДОП (нарушение целостности)") from e
         except SQLAlchemyError as e:
-            await db.rollback()
             logger.exception("SQLAlchemyError in update_dop: id=%s err=%s", dop.id, e)
             raise
         except Exception as e:
-            await db.rollback()
             logger.exception("Unexpected error in update_dop: id=%s err=%s", dop.id, e)
             raise
         logger.info("update_dop: обновлён dop.id=%s поля=%s", dop.id, list(update_data))
@@ -134,17 +128,15 @@ class DopCRUD:
         logger.debug("delete_dop: dop.id=%s", dop.id)
         await db.delete(dop)
         try:
-            await db.commit()
+            async with db.begin():
+                pass
         except IntegrityError as e:
-            await db.rollback()
             logger.error("IntegrityError in delete_dop: id=%s err=%s", dop.id, e)
             raise ValueError("Невозможно удалить запись ДОП: связанные записи") from e
         except SQLAlchemyError as e:
-            await db.rollback()
             logger.exception("SQLAlchemyError in delete_dop: id=%s err=%s", dop.id, e)
             raise
         except Exception as e:
-            await db.rollback()
             logger.exception("Unexpected error in delete_dop: id=%s err=%s", dop.id, e)
             raise
         logger.info("delete_dop: удалён dop.id=%s", dop.id)

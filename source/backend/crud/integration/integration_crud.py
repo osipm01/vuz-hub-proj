@@ -42,10 +42,9 @@ class IntegrationCRUD:
         )
         db.add(log)
         try:
-            await db.commit()
-            await db.refresh(log)
+            async with db.begin():
+                await db.refresh(log)
         except SQLAlchemyError:
-            await db.rollback()
             logger.exception("create_log: SQLAlchemyError")
             raise
         logger.info("create_log: создан log.id=%s", log.id)
@@ -73,14 +72,12 @@ class IntegrationCRUD:
         token = IntegrationToken(name=name, token_hash=token_hash, expires_at=expires_at)
         db.add(token)
         try:
-            await db.commit()
-            await db.refresh(token)
+            async with db.begin():
+                await db.refresh(token)
         except IntegrityError as e:
-            await db.rollback()
             logger.error("create_token: IntegrityError name=%s err=%s", name, e)
             raise
         except SQLAlchemyError:
-            await db.rollback()
             logger.exception("create_token: SQLAlchemyError")
             raise
         logger.info("create_token: создан token.id=%s name=%s", token.id, name)

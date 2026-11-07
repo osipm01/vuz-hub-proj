@@ -53,18 +53,15 @@ class UserCRUD:
         db.add(user)
 
         try:
-            await db.commit()
-            await db.refresh(user)
+            async with db.begin():
+                await db.refresh(user)
         except IntegrityError as exc:
-            await db.rollback()
             logger.error("create_user: IntegrityError email=%r err=%s", data.email, exc)
             raise
         except SQLAlchemyError:
-            await db.rollback()
             logger.exception("create_user: SQLAlchemyError email=%r", data.email)
             raise
         except Exception:
-            await db.rollback()
             logger.exception("create_user: unexpected error email=%r", data.email)
             raise
 
@@ -160,18 +157,15 @@ class UserCRUD:
             setattr(user, field, value)
 
         try:
-            await db.commit()
-            await db.refresh(user)
+            async with db.begin():
+                await db.refresh(user)
         except IntegrityError as exc:
-            await db.rollback()
             logger.error("update_user: IntegrityError user.id=%s fields=%r", user.id, list(update_data))
             raise ValueError("Не удалось обновить пользователя (дубликат данных)") from exc
         except SQLAlchemyError:
-            await db.rollback()
             logger.exception("update_user: SQLAlchemyError user.id=%s", user.id)
             raise
         except Exception:
-            await db.rollback()
             logger.exception("update_user: unexpected error user.id=%s", user.id)
             raise
 
@@ -184,14 +178,12 @@ class UserCRUD:
         user.role = role
 
         try:
-            await db.commit()
-            await db.refresh(user)
+            async with db.begin():
+                await db.refresh(user)
         except SQLAlchemyError:
-            await db.rollback()
             logger.exception("update_role: SQLAlchemyError user.id=%s", user.id)
             raise
         except Exception:
-            await db.rollback()
             logger.exception("update_role: unexpected error user.id=%s", user.id)
             raise
 
@@ -212,18 +204,15 @@ class UserCRUD:
         setattr(user, field, social_id)
 
         try:
-            await db.commit()
-            await db.refresh(user)
+            async with db.begin():
+                await db.refresh(user)
         except IntegrityError as exc:
-            await db.rollback()
             logger.error("link_social: IntegrityError user.id=%s link_type=%s social_id=%r", user.id, link_type, social_id)
             raise ValueError(f"Этот {link_type.value} ID уже был привязан другим пользователем") from exc
         except SQLAlchemyError:
-            await db.rollback()
             logger.exception("link_social: SQLAlchemyError user.id=%s", user.id)
             raise
         except Exception:
-            await db.rollback()
             logger.exception("link_social: unexpected error user.id=%s", user.id)
             raise
 
@@ -236,18 +225,15 @@ class UserCRUD:
         setattr(user, field, None)
 
         try:
-            await db.commit()
-            await db.refresh(user)
+            async with db.begin():
+                await db.refresh(user)
         except IntegrityError as exc:
-            await db.rollback()
             logger.error("unlink_social: IntegrityError user.id=%s link_type=%s", user.id, link_type)
             raise ValueError("Невозможно отвязать соцсеть (поле не может быть NULL)") from exc
         except SQLAlchemyError:
-            await db.rollback()
             logger.exception("unlink_social: SQLAlchemyError user.id=%s", user.id)
             raise
         except Exception:
-            await db.rollback()
             logger.exception("unlink_social: unexpected error user.id=%s", user.id)
             raise
 
@@ -270,17 +256,15 @@ class UserCRUD:
         await db.delete(user)
 
         try:
-            await db.commit()
+            async with db.begin():
+                pass
         except IntegrityError as exc:
-            await db.rollback()
             logger.error("delete_user: IntegrityError user.id=%s", user.id)
             raise ValueError("Невозможно удалить пользователя: существуют связанные записи") from exc
         except SQLAlchemyError:
-            await db.rollback()
             logger.exception("delete_user: SQLAlchemyError user.id=%s", user.id)
             raise
         except Exception:
-            await db.rollback()
             logger.exception("delete_user: unexpected error user.id=%s", user.id)
             raise
 

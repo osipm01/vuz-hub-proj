@@ -30,18 +30,15 @@ class DebtCRUD:
         debt = Debt(**data.model_dump())
         db.add(debt)
         try:
-            await db.commit()
-            await db.refresh(debt)
+            async with db.begin():
+                await db.refresh(debt)
         except IntegrityError as e:
-            await db.rollback()
             logger.error("IntegrityError in create_debt: data=%r err=%s", data, e)
             raise
         except SQLAlchemyError as e:
-            await db.rollback()
             logger.exception("SQLAlchemyError in create_debt: err=%s", e)
             raise
         except Exception as e:
-            await db.rollback()
             logger.exception("Unexpected error in create_debt: err=%s", e)
             raise
         logger.info("create_debt: создан debt.id=%s user_id=%s", debt.id, debt.user_id)
@@ -123,19 +120,16 @@ class DebtCRUD:
         for field, value in update_data.items():
             setattr(debt, field, value)
         try:
-            await db.commit()
-            await db.refresh(debt)
+            async with db.begin():
+                await db.refresh(debt)
         except IntegrityError as e:
-            await db.rollback()
             logger.error("IntegrityError in update_debt: id=%s data=%r err=%s",
                          debt.id, update_data, e)
             raise ValueError("Не удалось обновить долг (нарушение целостности)") from e
         except SQLAlchemyError as e:
-            await db.rollback()
             logger.exception("SQLAlchemyError in update_debt: id=%s err=%s", debt.id, e)
             raise
         except Exception as e:
-            await db.rollback()
             logger.exception("Unexpected error in update_debt: id=%s err=%s", debt.id, e)
             raise
         logger.info("update_debt: обновлён debt.id=%s поля=%s", debt.id, list(update_data))
@@ -145,17 +139,15 @@ class DebtCRUD:
         logger.debug("delete_debt: debt.id=%s", debt.id)
         await db.delete(debt)
         try:
-            await db.commit()
+            async with db.begin():
+                pass
         except IntegrityError as e:
-            await db.rollback()
             logger.error("IntegrityError in delete_debt: id=%s err=%s", debt.id, e)
             raise ValueError("Невозможно удалить долг: связанные записи") from e
         except SQLAlchemyError as e:
-            await db.rollback()
             logger.exception("SQLAlchemyError in delete_debt: id=%s err=%s", debt.id, e)
             raise
         except Exception as e:
-            await db.rollback()
             logger.exception("Unexpected error in delete_debt: id=%s err=%s", debt.id, e)
             raise
         logger.info("delete_debt: удалён debt.id=%s", debt.id)
