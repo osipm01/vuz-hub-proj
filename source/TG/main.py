@@ -3,9 +3,11 @@ import logging
 from datetime import datetime
 
 import telebot
+from telebot.async_telebot import AsyncTeleBot
 
 from config import config
 from exceptions import ApiConflictError, ApiError, ApiNotFoundError
+<<<<<<< Updated upstream
 from services import (
     user_service,
     debt_service,
@@ -15,15 +17,14 @@ from services import (
     dop_service,
     user_subject_service,
 )
+=======
+from services import user_service, debt_service, user_subject_service
+>>>>>>> Stashed changes
 
 logging.basicConfig(level=logging.INFO)
 
-bot = telebot.TeleBot(config.bot_token)
-
-
-def run_async(coro):
-    """Мост sync-хендлеров telebot в asyncio."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+# 2. Инициализируем асинхронного бота
+bot = AsyncTeleBot(config.bot_token)
 
 
 def _args(message: telebot.types.Message) -> list[str]:
@@ -79,19 +80,28 @@ def cmd_register(message: telebot.types.Message) -> None:
 # ─────────────────────────── ПОЛЬЗОВАТЕЛИ ───────────────────────────
 
 @bot.message_handler(commands=["user"])
+<<<<<<< Updated upstream
 def cmd_user(message: telebot.types.Message) -> None:
     parts = _args(message)
     if len(parts) != 1 or not parts[0].isdigit():
         bot.reply_to(message, "Использование: /user <user_id>")
+=======
+async def cmd_user(message: telebot.types.Message) -> None:
+    parts = message.text.split(maxsplit=1)
+    if len(parts) != 2 or not parts[1].isdigit():
+        await bot.reply_to(message, "Использование: /user <user_id>")
+>>>>>>> Stashed changes
         return
 
     user_id = int(parts[0])
     try:
-        user = run_async(user_service.get_user(user_id))
+        # 3. Прямой вызов через await, без костылей
+        user = await user_service.get_user(user_id)
     except ApiNotFoundError:
-        bot.reply_to(message, f"Пользователь id={user_id} не найден")
+        await bot.reply_to(message, f"Пользователь id={user_id} не найден")
         return
     except ApiError as e:
+<<<<<<< Updated upstream
         _reply_api_error(message, e)
         return
 
@@ -108,9 +118,26 @@ def cmd_user_by_email(message: telebot.types.Message) -> None:
     parts = _args(message)
     if len(parts) != 1:
         bot.reply_to(message, "Использование: /user_email <email>")
+=======
+        await bot.reply_to(message, f"Ошибка API: {e}")
+        return
+
+    name = user.get('full_name') or user.get('name') or str(user_id)
+    email = user.get('email') or 'не указан'
+    text = f"👤 {name}\nemail: {email}"
+    await bot.reply_to(message, text)
+
+
+@bot.message_handler(commands=["debts"])
+async def cmd_debts(message: telebot.types.Message) -> None:
+    parts = message.text.split(maxsplit=1)
+    if len(parts) != 2 or not parts[1].isdigit():
+        await bot.reply_to(message, "Использование: /debts <user_id>")
+>>>>>>> Stashed changes
         return
 
     try:
+<<<<<<< Updated upstream
         user = run_async(user_service.get_user_by_email(parts[0]))
     except ApiNotFoundError:
         bot.reply_to(message, f"Пользователь с email {parts[0]} не найден")
@@ -276,12 +303,18 @@ def cmd_debts(message: telebot.types.Message) -> None:
         debts = run_async(debt_service.list_debts(user_id=user_id, is_resolved=is_resolved))
     except ApiError as e:
         _reply_api_error(message, e)
+=======
+        debts = await debt_service.list_debts(user_id=user_id, is_resolved=False)
+    except ApiError as e:
+        await bot.reply_to(message, f"Ошибка API: {e}")
+>>>>>>> Stashed changes
         return
 
     if not debts:
-        bot.reply_to(message, "Долгов нет 🎉")
+        await bot.reply_to(message, "Долгов нет 🎉")
         return
 
+<<<<<<< Updated upstream
     lines = []
     for d in debts:
         status = "✅" if d.get("is_resolved") else "❗"
@@ -437,3 +470,36 @@ def cmd_schedule_item(message: telebot.types.Message) -> None:
 if __name__ == "__main__":
     logging.info("Bot started")
     bot.infinity_polling(skip_pending=True)
+=======
+    lines = [f"#{d.get('id', 'N/A')} — {d.get('description', 'без описания')}" for d in debts]
+    await bot.reply_to(message, "📋 Активные долги:\n" + "\n".join(lines))
+
+
+@bot.message_handler(commands=["link"])
+async def cmd_link(message: telebot.types.Message) -> None:
+    """ /link <user_id> <subject_id> """
+    parts = message.text.split()
+    if len(parts) != 3 or not (parts[1].isdigit() and parts[2].isdigit()):
+        await bot.reply_to(message, "Использование: /link <user_id> <subject_id>")
+        return
+
+    user_id, subject_id = int(parts[1]), int(parts[2])
+
+    try:
+        await user_subject_service.create_link(user_id, subject_id)
+    except ApiConflictError:
+        await bot.reply_to(message, "Такая связь уже существует")
+        return
+    except ApiError as e:
+        await bot.reply_to(message, f"Ошибка API: {e}")
+        return
+
+    await bot.reply_to(message, f"✅ Предмет {subject_id} привязан к пользователю {user_id}")
+
+
+try:
+    asyncio.run(bot.polling())
+    logging.INFO("run")
+except Exception as e:
+    logging.error(e)
+>>>>>>> Stashed changes

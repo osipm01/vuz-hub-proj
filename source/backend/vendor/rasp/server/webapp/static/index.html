@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Составитель расписания</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --fg:#1d2433; --mut:#667085; --acc:#305496;
+          --ok:#1a7f4b; --err:#c0392b; --line:#e3e6ec; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12151b; --card:#1b2029; --fg:#e8ebf1; --mut:#98a2b3;
+            --acc:#6b95e6; --ok:#4cc38a; --err:#ff7b6b; --line:#2b3240; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:22px; margin:0 0 4px; } .sub { color:var(--mut); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:18px; margin-bottom:16px; }
+  label { display:block; font-size:13px; color:var(--mut); margin-bottom:4px; }
+  input, select { width:100%; padding:8px 10px; border:1px solid var(--line);
+          border-radius:8px; background:var(--bg); color:var(--fg); font:inherit; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  button, .btn { background:var(--acc); color:#fff; border:0; border-radius:8px;
+          padding:10px 16px; font:inherit; font-weight:600; cursor:pointer;
+          text-decoration:none; display:inline-block; }
+  button.sec { background:transparent; color:var(--acc); border:1px solid var(--acc); }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+  details summary { cursor:pointer; color:var(--acc); margin:12px 0 8px; }
+  .bar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; }
+  .bar > div { height:100%; width:0; background:var(--acc); transition:width .3s; }
+  .meta { display:flex; justify-content:space-between; color:var(--mut);
+          font-size:13px; margin-top:6px; }
+  .badge { font-size:12px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  ul.errs { margin:8px 0 0; padding-left:20px; max-height:240px; overflow:auto; }
+  canvas { width:100%; height:140px; margin-top:12px; }
+  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
+  td { padding:4px 0; border-bottom:1px solid var(--line); } td:last-child { text-align:right; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Составитель расписания</h1>
+  <p class="sub">Генетический алгоритм · расчёт идёт в фоновом процессе, можно закрыть вкладку и вернуться по ссылке.</p>
+
+  <form id="form" class="card">
+    <label for="file">Файл с данными (.xlsx)</label>
+    <input id="file" name="file" type="file" accept=".xlsx,.xlsm">
+    <div class="sub" style="margin:6px 0 0">
+      Нет файла? <a href="/api/template">скачать шаблон</a> или оставьте поле пустым — будут сгенерированы тестовые данные.
+    </div>
+    <details>
+      <summary>Параметры алгоритма</summary>
+      <div class="grid">
+        <div><label>Популяция</label><input name="pop" type="number" value="100" min="10" max="1000"></div>
+        <div><label>Поколений</label><input name="generations" type="number" value="300" min="1" max="5000"></div>
+        <div><label>Мутация</label><input name="mutation" type="number" value="0.03" step="0.005" min="0.001" max="0.5"></div>
+        <div><label>Элита</label><input name="elite" type="number" value="4" min="1" max="50"></div>
+        <div><label>Процессов</label><input name="workers" id="workers" type="number" value="4" min="1"></div>
+        <div><label>Устройство</label>
+          <select name="device"><option>cpu</option><option>cuda</option><option>numpy</option></select></div>
+        <div><label>Seed</label><input name="seed" type="number" value="1"></div>
+      </div>
+      <div class="sub" style="margin:12px 0 4px">Тестовые данные (если файл не выбран)</div>
+      <div class="grid">
+        <div><label>Преподавателей</label><input name="teachers" type="number" value="50"></div>
+        <div><label>Групп</label><input name="groups" type="number" value="40"></div>
+        <div><label>Аудиторий</label><input name="rooms" type="number" value="30"></div>
+      </div>
+    </details>
+    <div class="row"><button id="start" type="submit">Составить расписание</button></div>
+    <div id="formErr" class="err hide"></div>
+  </form>
+
+  <section id="job" class="card hide">
+    <div class="row" style="margin:0;justify-content:space-between">
+      <strong id="state">—</strong><span id="inp" class="badge"></span>
+    </div>
+    <div class="bar" style="margin-top:12px"><div id="fill"></div></div>
+    <div class="meta"><span id="gen"></span><span id="best"></span></div>
+    <canvas id="chart"></canvas>
+    <div id="jobErr" class="err hide"></div>
+    <table id="stats" class="hide"></table>
+    <div class="row">
+      <a id="dl" class="btn hide" href="#">Скачать schedule.xlsx</a>
+      <button id="cancel" class="sec hide" type="button">Отменить</button>
+      <button id="again" class="sec hide" type="button">Новый расчёт</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const form = $('form'), jobBox = $('job');
+let es = null, jid = null;
+
+fetch('/api/health').then(r => r.json()).then(h => {
+  $('workers').value = h.cpu; $('workers').max = h.cpu;
+}).catch(() => {});
+
+const LABELS = {
+  conflicts: 'Конфликтов', capacity: 'Нарушений вместимости',
+  computer: 'Пары не в комп. классе', teacher_gaps: 'Препод.: окна > 1',
+  group_gaps: 'Группы: окна > 1', teacher_adj: 'Препод.: подряд в разных ансамблях',
+  group_adj: 'Группы: подряд в разных ансамблях',
+  group_extra_changes: 'Группы: лишние смены ансамбля', pref: 'Попаданий в предпочтения'
+};
+const STATE = { queued: 'В очереди', running: 'Идёт расчёт', done: 'Готово',
+                failed: 'Ошибка', cancelled: 'Отменено' };
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  $('formErr').classList.add('hide');
+  const fd = new FormData(form);
+  if (!fd.get('file') || !fd.get('file').name) fd.delete('file');
+  $('start').disabled = true;
+  try {
+    const r = await fetch('/api/jobs', { method: 'POST', body: fd });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return showFormErr(j, r.status);
+    location.hash = j.id;
+    watch(j.id);
+  } catch (err) { showFormErr({ error: String(err) }); }
+  finally { $('start').disabled = false; }
+});
+
+function showFormErr(j, status) {
+  let items = j.errors || (Array.isArray(j.detail)
+      ? j.detail.map(d => `${(d.loc||[]).slice(1).join('.')}: ${d.msg}`) : null)
+      || [j.error || `Ошибка ${status}`];
+  const box = $('formErr');
+  box.innerHTML = '<strong>Не удалось запустить:</strong><ul class="errs">' +
+    items.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>';
+  box.classList.remove('hide');
+}
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function watch(id) {
+  jid = id;
+  if (es) es.close();
+  form.classList.add('hide'); jobBox.classList.remove('hide');
+  es = new EventSource(`/api/jobs/${id}/events`);
+  es.onmessage = ev => {
+    const s = JSON.parse(ev.data);
+    if (s.status === 'gone') { reset(); return; }
+    render(s);
+    if (['done', 'failed', 'cancelled'].includes(s.status)) es.close();
+  };
+  es.onerror = () => { /* EventSource сам переподключится */ };
+}
+
+function render(s) {
+  const p = s.progress || {}, running = s.status === 'running', queued = s.status === 'queued';
+  $('state').textContent = (STATE[s.status] || s.status) +
+    (queued && s.position ? ` · позиция ${s.position}` : '') +
+    (s.stage === 'export' ? ' · сохраняю Excel…' : '');
+  $('state').className = s.status === 'done' ? 'ok' : s.status === 'failed' ? 'err' : '';
+  const i = s.input || {};
+  $('inp').textContent = i.lessons ? `${i.lessons} пар · ${i.teachers} преп. · ${i.groups} групп · ${i.rooms} ауд.` : '';
+  const pct = s.status === 'done' ? 100 : p.total ? Math.min(100, 100 * p.gen / p.total) : 0;
+  $('fill').style.width = pct + '%';
+  $('gen').textContent = p.total ? `Поколение ${p.gen} / ${p.total}` : '';
+  $('best').textContent = p.best != null ? `Лучший фитнес: ${Math.round(p.best)}` : '';
+  draw(s.history || []);
+  $('cancel').classList.toggle('hide', !(running || queued));
+  $('again').classList.toggle('hide', running || queued);
+  $('dl').classList.toggle('hide', s.status !== 'done');
+  if (s.status === 'done') $('dl').href = `/api/jobs/${jid}/result`;
+  const eb = $('jobErr');
+  if (s.status === 'failed') {
+    eb.innerHTML = `<strong>${esc(s.error || 'Ошибка')}</strong>` +
+      (s.errors ? '<ul class="errs">' + s.errors.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>' : '');
+    eb.classList.remove('hide');
+  } else eb.classList.add('hide');
+  const t = $('stats');
+  if (s.status === 'done' && s.result) {
+    const st = s.result.stats;
+    t.innerHTML = `<tr><td>Фитнес</td><td>${Math.round(s.result.score)}</td></tr>` +
+      `<tr><td>Время расчёта</td><td>${s.result.elapsed} с</td></tr>` +
+      Object.keys(LABELS).map(k => `<tr><td>${LABELS[k]}</td><td class="${k==='conflicts'&&st[k]?'err':''}">${st[k]}</td></tr>`).join('');
+    t.classList.remove('hide');
+  } else t.classList.add('hide');
+}
+
+function draw(h) {
+  const c = $('chart'), dpr = devicePixelRatio || 1;
+  c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  const W = c.clientWidth, H = c.clientHeight;
+  g.clearRect(0, 0, W, H);
+  if (h.length < 2) return;
+  const xs = h.map(a => a[0]), ys = h.map(a => a[1]);
+  const x0 = xs[0], x1 = xs[xs.length - 1] || 1;
+  let y0 = Math.min(...ys), y1 = Math.max(...ys); if (y0 === y1) y1 = y0 + 1;
+  const cs = getComputedStyle(document.body);
+  g.strokeStyle = cs.getPropertyValue('--acc'); g.lineWidth = 2; g.beginPath();
+  h.forEach(([x, y], k) => {
+    const px = 6 + (W - 12) * (x - x0) / (x1 - x0 || 1), py = H - 6 - (H - 12) * (y - y0) / (y1 - y0);
+    k ? g.lineTo(px, py) : g.moveTo(px, py);
+  });
+  g.stroke();
+}
+
+$('cancel').onclick = () => fetch(`/api/jobs/${jid}/cancel`, { method: 'POST' })
+  .then(r => r.json()).then(render);
+$('again').onclick = reset;
+function reset() {
+  if (es) es.close();
+  jid = null; location.hash = '';
+  jobBox.classList.add('hide'); form.classList.remove('hide');
+}
+if (/^#[0-9a-f]{32}$/.test(location.hash)) watch(location.hash.slice(1));
+</script>
+</body>
+</html>

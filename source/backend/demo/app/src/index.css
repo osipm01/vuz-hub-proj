@@ -1,0 +1,227 @@
+/* global.css */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  font-size: 11px;
+  color: aliceblue;
+  font-weight: 400;
+  background: #22c1c3;
+  background: linear-gradient(
+    48deg,
+    rgba(34, 193, 195, 1) 0%,
+    rgba(144, 190, 120, 1) 50%,
+    rgba(253, 187, 45, 1) 100%
+  );
+  font-family: 'Poppins', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+/* Корневой контейнер React (Vite / CRA) */
+#root {
+  padding: 10px;
+  width: 100%;
+  min-height: 100vh;
+  display: block; /* защита от grid/flex из шаблона Vite */
+}
+
+/* ===== РАСКЛАДКА ПРИЛОЖЕНИЯ: сайдбар слева, панель справа ===== */
+.app {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 20px;
+  width: 100%;
+  min-height: calc(100vh - 20px); /* минус padding #root сверху+снизу */
+  box-sizing: border-box;
+}
+
+.app__content {
+  flex: 1 1 auto;
+  min-width: 0; /* чтобы длинный контент не раздувал колонку */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Сайдбар фиксированной ширины, не сжимается */
+.app > .sidebar {
+  flex: 0 0 auto;
+  width: 250px;
+}
+/* ============================================================== */
+
+/* Навигационные ссылки */
+.nav-link {
+  text-decoration: none;
+  color: aliceblue;
+  font-size: 15px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color 0.3s ease, border-color 0.3s ease,
+    padding-left 0.3s ease, transform 0.2s ease;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  padding-left: 20px;
+  transform: translateX(4px) !important;
+}
+
+.nav-link:active {
+  transform: translateX(2px) scale(0.98) !important;
+}
+
+.nav-link span {
+  font-size: 17px;
+}
+
+@media (max-width: 300px) {
+  .nav-link {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  .nav-link:hover {
+    padding-left: 10px;
+    transform: none !important;
+  }
+}
+
+/* Фикс для контейнера уведомлений (react-toastify / sonner / кастомные тосты) */
+body > div[class*="fixed"],
+#root > div[class*="fixed"],
+.nt-container {
+  position: fixed !important;
+  top: 20px !important;
+  bottom: auto !important;
+  right: 20px !important;
+  left: auto !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  pointer-events: none !important;
+}
+
+/* Разрешаем клики внутри самого тоста (крестик и т.п.) */
+body > div[class*="fixed"] > *,
+#root > div[class*="fixed"] > *,
+.nt-notification {
+  pointer-events: auto !important;
+  max-width: 320px !important;
+  width: 100% !important;
+  margin: 0 0 8px auto !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ===== Демо-UI: формы, таблицы, карточки ===== */
+.demo-page, .upload-page, .jobs-page { display: flex; flex-direction: column; gap: 16px; }
+.muted { opacity: 0.75; font-size: 13px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.error { color: #ffb4a2; }
+.error-inline { color: #ffb4a2; font-size: 12px; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.field--wide { grid-column: 1 / -1; }
+.field input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.08);
+  color: aliceblue;
+  font: inherit;
+}
+.field input:focus { outline: 2px solid rgba(255,255,255,0.5); }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.actions button { min-width: 160px; }
+
+button.small { padding: 6px 10px; font-size: 12px; min-width: 0; }
+button.secondary {
+  background: transparent;
+  border: 1px dashed rgba(255,255,255,0.4);
+}
+
+.row-between { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid rgba(255,255,255,0.35);
+}
+.badge--pending { background: rgba(255,255,255,0.1); }
+.badge--running { background: rgba(80,160,255,0.25); }
+.badge--completed { background: rgba(80,200,120,0.25); }
+.badge--failed { background: rgba(255,90,90,0.3); }
+
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.jobs-table th, .jobs-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+.jobs-table th { font-weight: 600; opacity: 0.85; }
+
+.job-card {
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.job-card__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.job-card__meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin: 0; }
+.job-card__meta dt { font-size: 11px; opacity: 0.7; }
+.job-card__meta dd { margin: 0; font-size: 13px; }
+
+.metrics {
+  margin: 0;
+  padding: 10px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  font-size: 12px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.progress { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.progress__bar {
+  width: 120px; height: 6px; border-radius: 3px;
+  background: rgba(255,255,255,0.2);
+  position: relative; overflow: hidden;
+}
+.progress__bar::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+  animation: progress-shimmer 1.2s linear infinite;
+}
+@keyframes progress-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}

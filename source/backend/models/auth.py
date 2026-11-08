@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -14,9 +14,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    group_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True
-    )
+    # group_id не имеет ForeignKey — таблица groups в study-service
+    group_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     hashed_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
