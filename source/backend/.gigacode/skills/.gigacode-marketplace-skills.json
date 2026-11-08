@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "skills": {
+    "bundled:code-reviewer": {
+      "dirName": "code-reviewer",
+      "marketplaceVersion": "0.1.0"
+    },
+    "bundled:prompt-improver": {
+      "dirName": "prompt-improver",
+      "marketplaceVersion": "0.1.0"
+    }
+  }
+}

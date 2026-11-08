@@ -1,17 +1,19 @@
-"""SQLAlchemy Base для всех сервисов.
+"""SQLAlchemy Base для всех моделей.
 
-Экспортирует base и модели для каждого сервиса.
-При импорте НЕ создаёт cross-service relationships — они ломают
-mapper inspection, когда модели из разных БД загружаются вместе.
+Все модели наследуются от единого Base из models.base.
+Это обеспечивает общий реестр метаданных, необходимый
+для корректной работы внешних ключей между таблицами.
 """
 
-from .auth import Base as auth_base, User
-from .study import Base as study_base, Group, Subject, Schedule, UserSubject
-from .finance import Base as finance_base, Debt, Dop
-from .integration import Base as integration_base, IntegrationLog, IntegrationToken
+from models.base import Base
+from models.auth import User
+from models.study import Group, Subject, Schedule, UserSubject
+from models.finance import Debt, Dop
+from models.integration import IntegrationLog, IntegrationToken
 
 __all__ = [
-    "auth_base", "study_base", "finance_base", "integration_base",
+    "Base",
     "User", "Group", "Subject", "Schedule", "UserSubject",
-    "Debt", "Dop", "IntegrationLog", "IntegrationToken",
+    "Debt", "Dop",
+    "IntegrationLog", "IntegrationToken",
 ]

@@ -47,7 +47,12 @@ class UserCRUD:
         hashed_pwd = None
         if hasattr(data, "password") and data.password:
             from services.auth.jwt_service import jwt_service
-            hashed_pwd = jwt_service.hash_password(data.password)
+            # Проверяем, не хеширован ли уже пароль (bcrypt-хеш начинается с '$2a$' или '$2b$').
+            # Иначе пароль мог быть уже захеширован в auth_service.
+            pwd = data.password
+            if not (pwd.startswith("$2a$") or pwd.startswith("$2b$")):
+                pwd = jwt_service.hash_password(pwd)
+            hashed_pwd = pwd
 
         user = User(**user_data, role=role, hashed_password=hashed_pwd)
         db.add(user)
