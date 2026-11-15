@@ -155,6 +155,18 @@ def cmd_migrate(service: Optional[str]) -> None:
     run(compose_cmd("run", "--rm", service, "alembic", "upgrade", "head"))
 
 
+def cmd_migrate_all(_: Optional[str]) -> None:
+    """Запуск миграций Alembic для всех сервисов."""
+    print(f"{Fore.BLUE}Запуск миграций для всех сервисов...{Style.RESET_ALL}")
+    for service in SERVICES:
+        print(f"{Fore.CYAN}--- {service} ---{Style.RESET_ALL}")
+        rc = run(compose_cmd("run", "--rm", service, "alembic", "upgrade", "head"), check=False)
+        if rc != 0:
+            print(f"{Fore.RED}Миграции для {service} завершились с ошибкой (код {rc}){Style.RESET_ALL}")
+            sys.exit(rc)
+    print(f"{Fore.GREEN}Все миграции применены.{Style.RESET_ALL}")
+
+
 def cmd_shell(service: Optional[str]) -> None:
     """Открыть shell в контейнере."""
     if not service:
@@ -182,13 +194,14 @@ def build_parser() -> argparse.ArgumentParser:
   python run.py down                     # остановить всё
   python run.py clean                    # полная очистка (с volumes)
   python run.py migrate auth-service     # запустить миграции
+  python run.py migrate-all              # миграции для всех сервисов
   python run.py db study-service         # статус БД study
   python run.py shell integration-service# shell в контейнере
 """,
     )
     parser.add_argument(
         "command",
-        choices=["build", "up", "down", "stop", "restart", "logs", "status", "clean", "db", "migrate", "shell"],
+        choices=["build", "up", "down", "stop", "restart", "logs", "status", "clean", "db", "migrate", "migrate-all", "shell"],
         help="Команда для выполнения",
     )
     parser.add_argument(
@@ -215,6 +228,7 @@ def main() -> None:
         "clean": cmd_clean,
         "db": cmd_db,
         "migrate": cmd_migrate,
+        "migrate-all": cmd_migrate_all,
         "shell": cmd_shell,
     }
 
