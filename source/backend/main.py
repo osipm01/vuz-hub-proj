@@ -1,6 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # Явный импорт моделей регистрирует все таблицы в едином
 # реестре метаданных SQLAlchemy (Base.metadata). Без этого
@@ -54,6 +55,15 @@ def create_app() -> FastAPI:
         title=f"My API [{SERVICE_NAME.upper()}]",
         version="0.1.0",
         lifespan=lifespan,
+    )
+
+    # CORS — временно разрешаем всё, потом настроим по умолчанию
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.get("/", tags=["Health"], summary="Проверка работы API")
