@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 # Явный импорт моделей регистрирует все таблицы в едином
@@ -18,13 +19,42 @@ from routers import (
     auth_router,
     integrations_router
 )
+from core.config import settings
+from drivers.redis import RedisDriver
 
 # Читаем имя сервиса из переменной окружения (по умолчанию запускаем всё как монолит)
 SERVICE_NAME = os.getenv("SERVICE_NAME", "monolith").lower()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ---- Инициализация Redis ----
+    redis_driver = RedisDriver(
+        url=settings.REDIS_URL,
+        key_prefix=settings.REDIS_KEY_PREFIX,
+    )
+    try:
+        await redis_driver.connect()
+        app.state.redis = redis_driver
+    except Exception:
+        # Redis опционален — приложение стартует без него
+        app.state.redis = None
+
+    yield
+
+    # ---- Закрытие Redis ----
+    redis: RedisDriver | None = getattr(app.state, "redis", None)
+    if redis is not None:
+        await redis.close()
+
+
 def create_app() -> FastAPI:
     # 1. Инициализируем базовое приложение
-    app = FastAPI(title=f"My API [{SERVICE_NAME.upper()}]", version="0.1.0")
+    app = FastAPI(
+        title=f"My API [{SERVICE_NAME.upper()}]",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
 
     @app.get("/", tags=["Health"], summary="Проверка работы API")
     async def root():
