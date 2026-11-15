@@ -15,8 +15,10 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from fastapi import Request
 
 from .config import settings
+from drivers.redis import RedisDriver
 
 logger = logging.getLogger(__name__)
 
@@ -83,3 +85,44 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
+<<<<<<< HEAD
+=======
+
+
+# ------------------------------------------------------------------ #
+#  ENGINE / SESSION  factories  (для микросервисов)
+# ------------------------------------------------------------------ #
+
+def create_service_engine(db_name: str | None = None, db_host: str | None = None):
+    """
+    Создать отдельный engine для микросервиса.
+
+    Если SERVICE_NAME != "monolith" — engine создаётся
+    из settings.DB_HOST / settings.DB_NAME (переопределённых
+    через .env-файл конкретного сервиса).
+    """
+    url = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{db_host or settings.DB_HOST}:{settings.DB_PORT}/{db_name or settings.DB_NAME}"
+    return create_async_engine(
+        url,
+        echo=False,
+        pool_size=10,
+        max_overflow=5,
+        pool_timeout=30,
+        pool_recycle=1800,
+    )
+
+
+# ------------------------------------------------------------------ #
+#  REDIS DEPENDENCY  (для FastAPI)
+# ------------------------------------------------------------------ #
+
+def get_redis(request: Request) -> RedisDriver | None:
+    """
+    FastAPI-зависимость: возвращает RedisDriver из app.state.
+
+    Если Redis не подключён (app.state.redis == None),
+    возвращает None — сервисы обрабатывают это корректно.
+    """
+    redis = getattr(request.app.state, "redis", None)
+    return redis
+>>>>>>> 90b0aae (init redus in stuldle)

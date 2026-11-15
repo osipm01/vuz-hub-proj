@@ -10,7 +10,9 @@
       "Bash(docker compose up *)",
       "Bash(python3 *)",
       "Bash(alembic *)",
-      "Bash(rm *)"
+      "Bash(rm *)",
+      "Bash(python *)",
+      "Bash(pip3 install *)"
     ]
   },
   "$version": 3
