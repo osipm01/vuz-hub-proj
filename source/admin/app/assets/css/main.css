@@ -1,0 +1,91 @@
+html, body {
+    margin: 0;
+    padding: 0; /* Убрали padding отсюда, чтобы fixed-уведомления не улетали */
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 100vh; /* Изменили на min-height, чтобы фон не обрезался при прокрутке */
+    font-size: 11px;
+    color: aliceblue;
+    font-weight: 400;
+    background: #22C1C3;
+    background: linear-gradient(48deg, rgba(34, 193, 195, 1) 0%, rgba(144, 190, 120, 1) 50%, rgba(253, 187, 45, 1) 100%);
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Сохраняем box-sizing для всех будущих элементов */
+*, *::before, *::after {
+    box-sizing: inherit;
+}
+
+#__nuxt {
+    padding: 10px;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* global.css */
+
+.nav-link {
+    text-decoration: none;
+    color: aliceblue; /* Убедитесь, что фон GlassPanel темный! */
+    font-size: 15px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    display: inline-flex; /* inline-flex защитит от схлопывания во flex-контейнерах */
+    align-items: center;
+    transition: background-color 0.3s ease, border-color 0.3s ease, padding-left 0.3s ease, transform 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+    padding-left: 20px;
+    transform: translateX(4px) !important;
+}
+
+.nav-link:active {
+    transform: translateX(2px) scale(0.98) !important;
+}
+
+.nav-link span {
+    font-size: 17px;
+}
+
+@media (max-width: 300px) {
+    .nav-link {
+        padding: 10px 8px;
+        font-size: 12px;
+    }
+    .nav-link:hover {
+        padding-left: 10px;
+        transform: none !important;
+    }
+}
+
+/* Улучшенный фикс, который принудительно достает уведомление из-под леяута наверх */
+body > div[class*="fixed"],
+#__nuxt > div[class*="fixed"],
+.nt-container {
+    position: fixed !important;
+    top: 20px !important;     /* Сдвигаем в самый верх экрана */
+    bottom: auto !important;   /* Отменяем появление снизу страницы */
+    right: 20px !important;    /* Смещаем в правый угол согласно вашему nuxt.config */
+    left: auto !important;     /* Сбрасываем левую координату */
+    z-index: 999999 !important; /* Поднимаем тост выше всех слоев леяута */
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    pointer-events: none !important; /* Контейнер не мешает кликать по интерфейсу */
+}
+
+/* Разрешаем клики внутри самого плашечки уведомления (чтобы работал крестик) */
+body > div[class*="fixed"] > *,
+#__nuxt > div[class*="fixed"] > *,
+.nt-notification {
+    pointer-events: auto !important;
+    max-width: 320px !important; /* Красивая компактная ширина тоста */
+    width: 100% !important;
+    margin: 0 0 8px auto !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2) !important; /* Тень, чтобы не сливалось с фоном */
+}
