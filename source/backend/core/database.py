@@ -85,8 +85,6 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
-<<<<<<< HEAD
-=======
 
 
 # ------------------------------------------------------------------ #
@@ -125,4 +123,3 @@ def get_redis(request: Request) -> RedisDriver | None:
     """
     redis = getattr(request.app.state, "redis", None)
     return redis
->>>>>>> 90b0aae (init redus in stuldle)

@@ -92,6 +92,8 @@ class RedisDriver:
         "url",
         "key_prefix",
         "_client",
+        "_socket_timeout",
+        "_socket_connect_timeout",
     )
 
     def __init__(
