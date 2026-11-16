@@ -1,0 +1,14 @@
+/home/osip/Documents/projects/vuz-hub-proj/source/proxy/target/debug/build/serde/d4255e69d0cc34df/out/serde-d4255e69d0cc34df.d: /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/osip/Documents/projects/vuz-hub-proj/source/proxy/target/debug/build/serde/50f2385af70771cf/out/private.rs
+
+/home/osip/Documents/projects/vuz-hub-proj/source/proxy/target/debug/build/serde/d4255e69d0cc34df/out/libserde-d4255e69d0cc34df.rlib: /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/osip/Documents/projects/vuz-hub-proj/source/proxy/target/debug/build/serde/50f2385af70771cf/out/private.rs
+
+/home/osip/Documents/projects/vuz-hub-proj/source/proxy/target/debug/build/serde/d4255e69d0cc34df/out/libserde-d4255e69d0cc34df.rmeta: /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/osip/Documents/projects/vuz-hub-proj/source/proxy/target/debug/build/serde/50f2385af70771cf/out/private.rs
+
+/home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs:
+/home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs:
+/home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs:
+/home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs:
+/home/osip/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs:
+/home/osip/Documents/projects/vuz-hub-proj/source/proxy/target/debug/build/serde/50f2385af70771cf/out/private.rs:
+
+# env-dep:OUT_DIR=/home/osip/Documents/projects/vuz-hub-proj/source/proxy/target/debug/build/serde/50f2385af70771cf/out
