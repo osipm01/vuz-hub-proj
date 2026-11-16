@@ -36,11 +36,13 @@
 
 <script setup lang="ts">
 import type { UserRead } from '~/types/user'
+import { useToast } from '~/composables/useToast'
 
 definePageMeta({
   middleware: 'auth',
 })
 
+const toast: ReturnType<typeof useToast> = useToast()
 const users: Ref<Array<UserRead>> = ref([])
 const isLoading: Ref<boolean> = ref(false)
 const error: Ref<string | null> = ref(null)
@@ -67,6 +69,7 @@ const loadUsers = async (): Promise<void> => {
     }
 
     error.value = 'Не удалось загрузить список пользователей'
+    toast.addError('Не удалось загрузить список пользователей')
   }
   finally {
     isLoading.value = false

@@ -8,4 +8,5 @@ const layout = ref<'default' | 'custom'>('default')
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
+  <ToastContainer />
 </template>

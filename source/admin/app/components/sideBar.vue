@@ -181,16 +181,21 @@
 </template>
 
 <script setup lang="ts">
-// если добавлял computed в хук — можно так:
-// const { logOut, userName, userRole, userId, fetchMe } = useAuth()
+import { useToast } from '~/composables/useToast'
 
-// На случай SSR/hard reload — подтянуть актуальные данные с бэка
-// onMounted(() => {
-//   fetchMe().catch(() => {})
-// })
+const toast: ReturnType<typeof useToast> = useToast()
 
-const handleLogoutBtn = async () => {
-  // await logOut()
-  return navigateTo('/auth')
+const handleLogoutBtn = async (): Promise<void> => {
+  try {
+    await $fetch('/api/auth/logout', { method: 'POST' })
+    useState<boolean>('auth:isAuthenticated', () => false).value = false
+    toast.addSuccess('Вы вышли из системы')
+  }
+  catch {
+    toast.addError('Ошибка при выходе')
+  }
+  finally {
+    navigateTo('/auth')
+  }
 }
 </script>

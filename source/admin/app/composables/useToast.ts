@@ -1,5 +1,8 @@
-import { v4 as uuidv4 } from 'uuid'
 import { ToastType, type ToastMessage } from '~/types/toast'
+
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
 
 export class ToastManager {
   private static instance: ToastManager | null = null
@@ -40,7 +43,7 @@ export class ToastManager {
   private add(message: string, type: ToastType, duration: number): void {
     const toasts: Array<ToastMessage> = useState<Array<ToastMessage>>('toast:list', () => [])
     const toastItem: ToastMessage = {
-      id: uuidv4(),
+      id: generateId(),
       text: message,
       type,
       duration,

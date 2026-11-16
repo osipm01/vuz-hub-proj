@@ -44,6 +44,7 @@ import { ref, reactive, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { LoginRequest } from '~/types/auth'
 import { AuthError, ValidationError, ApiError } from '~/types/apiError'
+import { useToast } from '~/composables/useToast'
 
 interface FormErrors {
   emailError: string | null
@@ -57,6 +58,7 @@ definePageMeta({
 })
 
 const router: ReturnType<typeof useRouter> = useRouter()
+const toast: ReturnType<typeof useToast> = useToast()
 const email: Ref<string> = ref('')
 const password: Ref<string> = ref('')
 const isSubmitting: Ref<boolean> = ref(false)
@@ -100,6 +102,7 @@ const handleLogin = async (): Promise<void> => {
     await $fetch('/api/auth/login', { method: 'POST', body: loginRequest })
 
     useState<boolean>('auth:isAuthenticated', () => true).value = true
+    toast.addSuccess('Вы успешно вошли в систему')
     router.push('/')
   }
   catch (err: unknown) {
@@ -115,12 +118,15 @@ const handleLogin = async (): Promise<void> => {
     }
     else if (err instanceof AuthError) {
       errors.genericError = 'Неверный email или пароль'
+      toast.addError('Неверный email или пароль')
     }
     else if (err instanceof ApiError) {
       errors.genericError = err.message
+      toast.addError(err.message)
     }
     else {
       errors.genericError = 'Произошла ошибка. Попробуйте позже'
+      toast.addError('Произошла ошибка. Попробуйте позже')
     }
   }
   finally {
