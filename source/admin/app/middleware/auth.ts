@@ -14,8 +14,29 @@ export default defineNuxtRouteMiddleware(async (to) => {
     pending: true,
   }))
 
-  // If still pending (fresh page load), skip client-side check.
-  // Server middleware already handled auth.
+  // Hydrate from server cookie during SSR before client navigation
+  if (import.meta.server) {
+    const token: string | undefined = getCookie(useNuxtApp().ssrContext.event, 'access_token')
+
+    if (token) {
+      try {
+        const res: Response = await fetch('http://localhost:8001/users/me', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` },
+        })
+
+        if (res.ok) {
+          const user: UserRead = await res.json()
+          state.value = { authenticated: true, user, pending: false }
+        }
+      }
+      catch {
+        /* invalid token */
+      }
+    }
+  }
+
+  // If pending on client (fresh reload), skip — server already handled auth
   if (state.value.pending) {
     return
   }
