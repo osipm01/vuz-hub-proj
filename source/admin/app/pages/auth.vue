@@ -53,6 +53,7 @@ interface FormErrors {
 
 definePageMeta({
   middleware: 'auth',
+  layout: false,
 })
 
 const router: ReturnType<typeof useRouter> = useRouter()

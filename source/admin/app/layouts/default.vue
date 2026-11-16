@@ -1,12 +1,15 @@
 <template>
   <div class="container-layout">
-    <SideBar />
-    <!-- Оборачиваем slot в тег main, чтобы управлять его размером и анимацией -->
+    <SideBar v-if="isAuthenticated" />
     <main class="content-wrapper">
       <slot />
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+const isAuthenticated: boolean = useState<boolean>('auth:isAuthenticated', () => false)
+</script>
 
 <style scoped>
 .container-layout {

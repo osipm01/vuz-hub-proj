@@ -1,9 +1,10 @@
 export default defineEventHandler(async (event) => {
   const protectedPaths: Array<string> = ['/', '/users', '/media']
-  const pathname: string = new URL(getRequestURL(event).pathname)
+  const requestUrl: URL = getRequestURL(event)
+  const pathname: string = requestUrl.pathname
 
   const isProtected: boolean = protectedPaths.some(
-    (path: string) => pathname.pathname === path || pathname.pathname.startsWith(`${path}/`)
+    (path: string) => pathname === path || pathname.startsWith(`${path}/`)
   )
 
   if (isProtected) {

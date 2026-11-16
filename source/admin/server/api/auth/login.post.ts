@@ -19,10 +19,6 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const headers: Record<string, string> = {}
-  response.headers.forEach((value: string, key: string) => {
-    headers[key] = value
-  })
-
-  return sendJSON(event, response.status, data)
+  setResponseStatus(event, response.status)
+  return data
 })

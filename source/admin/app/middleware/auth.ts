@@ -1,4 +1,4 @@
-export default defineMiddleware((to, from) => {
+export default defineNuxtRouteMiddleware((to) => {
   const protectedPaths: Array<string> = ['/', '/users', '/media']
   const isAuthenticated: boolean = useState<boolean>('auth:isAuthenticated', () => false)
 
