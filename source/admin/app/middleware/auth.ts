@@ -1,5 +1,6 @@
-import { useState } from 'vue'
+// import { useState } from 'vue'
 import type { UserRead } from '~/types/user'
+import { getCookie } from 'h3'
 
 interface AuthState {
   authenticated: boolean
@@ -8,51 +9,48 @@ interface AuthState {
 }
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  const state: AuthState = useState<AuthState>('auth:state', () => ({
+  const state = useState<AuthState>('auth:state', () => ({
     authenticated: false,
     user: null,
     pending: true,
   }))
 
-  // Hydrate from server cookie during SSR before client navigation
-  if (import.meta.server) {
-    const token: string | undefined = getCookie(useNuxtApp().ssrContext.event, 'access_token')
+  // Читаем куку нативным способом Nuxt (работает и на SSR, и на клиенте)
+  const token = useCookie<string | null>('access_token')
 
-    if (token) {
+  // Проверяем токен на сервере при первом заходе (или если статус ещё pending)
+  if (import.meta.server && state.value.pending) {
+    if (token.value) {
       try {
-        const res: Response = await fetch('http://localhost:8001/users/me', {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` },
+        const user = await $fetch<UserRead>('http://localhost:8001/users/me', {
+          headers: { Authorization: `Bearer ${token.value}` },
         })
-
-        if (res.ok) {
-          const user: UserRead = await res.json()
-          state.value = { authenticated: true, user, pending: false }
-        }
+        state.value = { authenticated: true, user, pending: false }
       }
       catch {
-        /* invalid token */
+        // Токен невалидный или протух
+        token.value = null
+        state.value = { authenticated: false, user: null, pending: false }
       }
+    }
+    else {
+      // Токена нет — сразу снимаем статус pending, чтобы сработал редирект на /auth
+      state.value.pending = false
     }
   }
 
-  // If pending on client (fresh reload), skip — server already handled auth
-  if (state.value.pending) {
-    return
-  }
-
-  const protectedPaths: Array<string> = ['/', '/users', '/media']
-  const isProtected: boolean = protectedPaths.some(
-    (path: string) => to.path === path || to.path.startsWith(`${path}/`)
+  const protectedPaths = ['/', '/users', '/media']
+  const isProtected = protectedPaths.some(
+    path => to.path === path || to.path.startsWith(`${path}/`),
   )
 
-  const isLoginPage: boolean = to.path === '/auth'
+  const isLoginPage = to.path === '/auth'
 
   if (isProtected && !state.value.authenticated) {
-    return '/auth'
+    return navigateTo('/auth')
   }
 
   if (isLoginPage && state.value.authenticated) {
-    return '/'
+    return navigateTo('/')
   }
 })
