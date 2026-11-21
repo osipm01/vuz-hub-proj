@@ -577,10 +577,6 @@ def _print_tui_menu() -> bool:
             input("\nНажмите Enter для продолжения...")
 
         elif choice == '21':
-            cmd_create_admin(None)
-            input("\nНажмите Enter для продолжения...")
-
-        elif choice == '19':
             confirm = input("\nПолная очистка (удалит volumes!). Удалить? [y/N]: ").strip().lower()
             if confirm == 'y':
                 if HAS_RICH: console.print("[red]Очистка...[/red]")
