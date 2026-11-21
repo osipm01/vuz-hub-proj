@@ -229,6 +229,30 @@ services:
     restart: unless-stopped
 
   # ===================================================================
+  # ADMIN PANELS
+  # ===================================================================
+  adminer:
+    image: adminer:4.8.1
+    container_name: vuzhub-adminer
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    networks:
+      - mynet
+    restart: unless-stopped
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: vuzhub-redis-commander
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    networks:
+      - mynet
+    restart: unless-stopped
+
+  # ===================================================================
   # API GATEWAY (опционально, nginx reverse proxy)
   # ===================================================================
   # api-gateway:

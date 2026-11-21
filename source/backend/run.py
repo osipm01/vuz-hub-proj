@@ -4,6 +4,7 @@ import argparse
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Optional
 
 # ===== Конфигурация =====
@@ -221,6 +222,20 @@ def cmd_haproxy(service: Optional[str]) -> None:
     cmds[action]()
 
 
+def cmd_create_admin(_: Optional[str]) -> None:
+    """Запуск скрипта создания администратора."""
+    project_root = Path(__file__).resolve().parent
+    admin_script = project_root / "scripts" / "create_admin.py"
+
+    if not admin_script.exists():
+        print(f"{Fore.RED}Файл {admin_script} не найден{Style.RESET_ALL}")
+        sys.exit(1)
+
+    print(f"{Fore.MAGENTA}Создание администратора...{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}Укажите параметры или нажмите Enter для дефолтов (Ctrl+C для выхода){Style.RESET_ALL}\n")
+    run(["python3", str(admin_script)], check=False)
+
+
 # ===== CLI =====
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -247,6 +262,7 @@ def build_parser() -> argparse.ArgumentParser:
   migrate-all               - миграции для всех
   shell <service>           - shell в контейнере
   haproxy <action>          - start, stop, restart, status, logs
+  admin                     - создать админа
 
 Примеры:
   python run.py up                        # запустить всё
@@ -260,7 +276,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=["build", "up", "down", "stop", "restart", "logs", "status", "clean", "db", "migrate", "migrate-all", "shell", "haproxy"],
+        choices=["build", "up", "down", "stop", "restart", "logs", "status", "clean", "db", "migrate", "migrate-all", "shell", "haproxy", "admin"],
         help="Команда для выполнения (без аргументов — запускает TUI-меню)",
     )
     parser.add_argument(
@@ -359,7 +375,7 @@ def _print_tui_menu() -> bool:
                 else:
                     table.add_row("", "", "")
 
-                # Правая колонка (БД + HAProxy)
+                # Правая колонка (БД + админки)
                 if i < len(dbs):
                     name, port = dbs[i]
                     status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
@@ -368,6 +384,14 @@ def _print_tui_menu() -> bool:
                     name, port = "haproxy", "80"
                     status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
                     table.add_row(f"[magenta]{name}[/magenta]", str(port), status)
+                elif i == len(dbs) + 1:
+                    name, port = "adminer", "8080"
+                    status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
+                    table.add_row(f"[green]{name}[/green]", str(port), status)
+                elif i == len(dbs) + 2:
+                    name, port = "redis-commander", "8081"
+                    status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
+                    table.add_row(f"[green]{name}[/green]", str(port), status)
                 else:
                     table.add_row("", "", "")
 
@@ -386,11 +410,14 @@ def _print_tui_menu() -> bool:
             console.print("  [cyan]4-7[/cyan]. Управление сервисами (вкл/выкл)")
             console.print("  [cyan]8-12[/cyan]. Управление БД (вкл/выкл)")
             console.print("  [magenta]13[/magenta]. Управление HAProxy (вкл/выкл)")
-            console.print("  [white]14[/white]. Логи всех сервисов")
-            console.print("  [white]15[/white]. Статус контейнеров")
-            console.print("  [white]16[/white]. Миграции для всех")
-            console.print("  [white]17[/white]. Shell в сервисе")
-            console.print("  [red]18[/red]. Полная очистка (с volumes)")
+            console.print("  [green]14[/green]. Управление Adminer (вкл/выкл)")
+            console.print("  [green]15[/green]. Управление Redis Commander (вкл/выкл)")
+            console.print("  [white]16[/white]. Логи всех сервисов")
+            console.print("  [white]17[/white]. Статус контейнеров")
+            console.print("  [white]18[/white]. Миграции для всех")
+            console.print("  [white]19[/white]. Shell в сервисе")
+            console.print("  [magenta]20[/magenta]. Создать администратора")
+            console.print("  [red]21[/red]. Полная очистка (с volumes)")
             console.print("  [bold red]q[/bold red]. Выход")
 
             choice = Prompt.ask("\n[bold cyan]Ваш выбор[/bold cyan]", default="").strip()
@@ -408,11 +435,14 @@ def _print_tui_menu() -> bool:
             print(f"  {Fore.CYAN}4-7{Style.RESET_ALL}. Управление сервисами (вкл/выкл)")
             print(f"  {Fore.CYAN}8-12{Style.RESET_ALL}. Управление БД (вкл/выкл)")
             print(f"  {Fore.MAGENTA}13{Style.RESET_ALL}. Управление HAProxy (вкл/выкл)")
-            print(f"  14. Логи всех сервисов")
-            print(f"  15. Статус контейнеров")
-            print(f"  16. Миграции для всех")
-            print(f"  17. Shell в сервисе")
-            print(f"  {Fore.RED}18{Style.RESET_ALL}. Полная очистка (с volumes)")
+            print(f"  {Fore.GREEN}14{Style.RESET_ALL}. Управление Adminer (вкл/выкл)")
+            print(f"  {Fore.GREEN}15{Style.RESET_ALL}. Управление Redis Commander (вкл/выкл)")
+            print(f"  16. Логи всех сервисов")
+            print(f"  17. Статус контейнеров")
+            print(f"  18. Миграции для всех")
+            print(f"  19. Shell в сервисе")
+            print(f"  {Fore.MAGENTA}20{Style.RESET_ALL}. Создать администратора")
+            print(f"  {Fore.RED}21{Style.RESET_ALL}. Полная очистка (с volumes)")
             print(f"  {Fore.RED}q{Style.RESET_ALL}. Выход\n")
 
             choice = input(f"{Fore.CYAN}Ваш выбор:{Style.RESET_ALL} ").strip()
@@ -477,17 +507,39 @@ def _print_tui_menu() -> bool:
             input("\nНажмите Enter для продолжения...")
 
         elif choice == '14':
+            if "adminer" in running:
+                if HAS_RICH: console.print("[yellow]Перезапуск Adminer...[/yellow]")
+                else: print(f"{Fore.YELLOW}Перезапуск Adminer...{Style.RESET_ALL}")
+                run(compose_cmd("restart", "adminer"))
+            else:
+                if HAS_RICH: console.print("[green]Запуск Adminer...[/green]")
+                else: print(f"{Fore.GREEN}Запуск Adminer...{Style.RESET_ALL}")
+                run(compose_cmd("up", "-d", "adminer"))
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '15':
+            if "redis-commander" in running:
+                if HAS_RICH: console.print("[yellow]Перезапуск Redis Commander...[/yellow]")
+                else: print(f"{Fore.YELLOW}Перезапуск Redis Commander...{Style.RESET_ALL}")
+                run(compose_cmd("restart", "redis-commander"))
+            else:
+                if HAS_RICH: console.print("[green]Запуск Redis Commander...[/green]")
+                else: print(f"{Fore.GREEN}Запуск Redis Commander...{Style.RESET_ALL}")
+                run(compose_cmd("up", "-d", "redis-commander"))
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '16':
             if HAS_RICH: console.print("[yellow]Логи всех сервисов (Ctrl+C для выхода)...[/yellow]")
             else: print(f"{Fore.YELLOW}Логи всех сервисов (Ctrl+C для выхода)...{Style.RESET_ALL}")
             run(compose_cmd("logs", "-f"), check=False)
 
-        elif choice == '15':
+        elif choice == '17':
             if HAS_RICH: console.print("[cyan]=== Статус контейнеров ===[/cyan]")
             else: print(f"{Fore.CYAN}=== Статус контейнеров ==={Style.RESET_ALL}")
             run(compose_cmd("ps"), check=False)
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '16':
+        elif choice == '18':
             if HAS_RICH: console.print("[blue]Запуск миграций для всех сервисов...[/blue]")
             else: print(f"{Fore.BLUE}Запуск миграций для всех сервисов...{Style.RESET_ALL}")
             for svc in SERVICES:
@@ -496,7 +548,7 @@ def _print_tui_menu() -> bool:
                 run(compose_cmd("run", "--rm", svc, "alembic", "upgrade", "head"), check=False)
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '17':
+        elif choice == '19':
             if HAS_RICH: console.print("\n[cyan]Выберите номер сервиса для shell:[/cyan]")
             else: print(f"\n{Fore.CYAN}Выберите номер сервиса для shell:{Style.RESET_ALL}")
             for i, svc in enumerate(SERVICES, start=1):
@@ -520,7 +572,15 @@ def _print_tui_menu() -> bool:
                 else: print(f"{Fore.RED}Введите число{Style.RESET_ALL}")
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '18':
+        elif choice == '20':
+            cmd_create_admin(None)
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '21':
+            cmd_create_admin(None)
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '19':
             confirm = input("\nПолная очистка (удалит volumes!). Удалить? [y/N]: ").strip().lower()
             if confirm == 'y':
                 if HAS_RICH: console.print("[red]Очистка...[/red]")
@@ -565,6 +625,7 @@ def main() -> None:
         "migrate-all": cmd_migrate_all,
         "shell": cmd_shell,
         "haproxy": cmd_haproxy,
+        "admin": cmd_create_admin,
     }
 
     handler = dispatch.get(args.command)
