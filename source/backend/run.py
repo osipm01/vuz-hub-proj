@@ -14,6 +14,34 @@ SERVICES = {
     "integration-service": 8004,
 }
 
+# Все контейнеры (сервисы + БД + HAProxy)
+ALL_CONTAINERS = list(SERVICES.keys()) + [
+    "auth-db",
+    "study-db",
+    "finance-db",
+    "integration-db",
+    "redis",
+    "haproxy",
+]
+
+DB_MAP = {
+    "auth-service": "auth-db",
+    "study-service": "study-db",
+    "finance-service": "finance-db",
+    "integration-service": "integration-db",
+}
+
+# ТУИ — текущее состояние
+STATE = {
+    "running": set(),
+    "selected": [],
+    "selected_db": None,
+    "selected_service": None,
+    "view": "main",  # main | status | logs | services | db | haproxy
+    "haproxy_status": "stopped",
+    "cursor": 0,
+}
+
 # Пытаемся подключить colorama для цветного вывода в Windows
 try:
     from colorama import Fore, Style, init as colorama_init
@@ -57,7 +85,6 @@ def validate_service(name: Optional[str]) -> None:
 
 def compose_cmd(*args: str) -> list[str]:
     """Возвращает команду docker compose (или docker-compose)."""
-    # Пробуем новый синтаксис (плагин), иначе старый
     base = ["docker", "compose"]
     return base + list(args)
 
@@ -126,17 +153,11 @@ def cmd_clean(_: Optional[str]) -> None:
 
 def cmd_db(service: Optional[str]) -> None:
     """Запуск/остановка только базы данных."""
-    db_map = {
-        "auth-service": "auth-db",
-        "study-service": "study-db",
-        "finance-service": "finance-db",
-        "integration-service": "integration-db",
-    }
     if not service:
         print(f"{Fore.RED}Ошибка: укажите сервис{Style.RESET_ALL}")
         sys.exit(1)
     validate_service(service)
-    db_container = db_map.get(service)
+    db_container = DB_MAP.get(service)
     if not db_container:
         print(f"{Fore.RED}Неизвестный сервис: {service}{Style.RESET_ALL}")
         sys.exit(1)
@@ -177,6 +198,29 @@ def cmd_shell(service: Optional[str]) -> None:
     run(compose_cmd("exec", "-it", service, "sh"))
 
 
+def cmd_haproxy(service: Optional[str]) -> None:
+    """Управление HAProxy."""
+    if not service:
+        print(f"{Fore.RED}Ошибка: укажите действие: start, stop, restart, status, logs{Style.RESET_ALL}")
+        sys.exit(1)
+
+    action = service
+    if action not in ("start", "stop", "restart", "status", "logs"):
+        print(f"{Fore.RED}Ошибка: неизвестное действие '{action}'{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}Доступные: start, stop, restart, status, logs{Style.RESET_ALL}")
+        sys.exit(1)
+
+    cmds = {
+        "start": lambda: run(compose_cmd("up", "-d", "haproxy")),
+        "stop": lambda: run(compose_cmd("stop", "haproxy")),
+        "restart": lambda: run(compose_cmd("restart", "haproxy")),
+        "status": lambda: run(compose_cmd("ps", "haproxy"), check=False),
+        "logs": lambda: run(compose_cmd("logs", "-f", "haproxy"), check=False),
+    }
+    print(f"{Fore.BLUE}HAProxy: {action}{Style.RESET_ALL}")
+    cmds[action]()
+
+
 # ===== CLI =====
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -186,36 +230,326 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=f"""Доступные сервисы:
   {', '.join(SERVICES)}
 
+Доступные БД:
+  auth-db, study-db, finance-db, integration-db, redis
+
+Команды:
+  build [service]           - пересобрать образ
+  up [service]              - запустить сервис + его БД
+  down                      - остановить всё
+  stop [service]            - остановить
+  restart [service]         - перезапустить
+  logs [service]            - логи (-f)
+  status                    - статус всех контейнеров
+  clean                     - полная очистка (с volumes)
+  db <service>              - статус БД для сервиса
+  migrate <service>         - миграции Alembic
+  migrate-all               - миграции для всех
+  shell <service>           - shell в контейнере
+  haproxy <action>          - start, stop, restart, status, logs
+
 Примеры:
-  python run.py up                       # запустить все сервисы + БД
-  python run.py up auth-service          # только auth + его БД
-  python run.py logs finance-service     # логи finance
-  python run.py build                    # пересобрать все образы
-  python run.py down                     # остановить всё
-  python run.py clean                    # полная очистка (с volumes)
-  python run.py migrate auth-service     # запустить миграции
-  python run.py migrate-all              # миграции для всех сервисов
-  python run.py db study-service         # статус БД study
-  python run.py shell integration-service# shell в контейнере
+  python run.py up                        # запустить всё
+  python run.py up auth-service           # только auth
+  python run.py haproxy start             # запустить HAProxy
+  python run.py db study-service          # статус БД study
+  python run.py migrate-all               # миграции для всех
+  python run.py                           # запустить TUI-меню
 """,
     )
     parser.add_argument(
         "command",
-        choices=["build", "up", "down", "stop", "restart", "logs", "status", "clean", "db", "migrate", "migrate-all", "shell"],
-        help="Команда для выполнения",
+        nargs="?",
+        choices=["build", "up", "down", "stop", "restart", "logs", "status", "clean", "db", "migrate", "migrate-all", "shell", "haproxy"],
+        help="Команда для выполнения (без аргументов — запускает TUI-меню)",
     )
     parser.add_argument(
         "service",
         nargs="?",
         default=None,
-        help="Имя сервиса (опционально)",
+        help="Имя сервиса / действие (например: start для haproxy)",
     )
     return parser
+
+
+# ===== TUI =====
+def _parse_status() -> set:
+    """Парсит статус контейнеров из docker compose ps."""
+    try:
+        result = subprocess.run(
+            compose_cmd("ps", "--format", "json"),
+            capture_output=True, text=True, check=False
+        )
+        running = set()
+        if result.returncode == 0:
+            import json
+            for line in result.stdout.strip().split("\n"):
+                if not line.strip():
+                    continue
+                try:
+                    data = json.loads(line)
+                    if data.get("State", "").lower().startswith("running"):
+                        name = data.get("Name", "").lower()
+                        # Нормализация имен для надежного сопоставления независимо от префикса проекта
+                        if "auth-service" in name: running.add("auth-service")
+                        elif "study-service" in name: running.add("study-service")
+                        elif "finance-service" in name: running.add("finance-service")
+                        elif "integration-service" in name: running.add("integration-service")
+                        elif "auth-db" in name: running.add("auth-db")
+                        elif "study-db" in name: running.add("study-db")
+                        elif "finance-db" in name: running.add("finance-db")
+                        elif "integration-db" in name: running.add("integration-db")
+                        elif "redis" in name: running.add("redis")
+                        elif "haproxy" in name: running.add("haproxy")
+                except (json.JSONDecodeError, KeyError):
+                    pass
+        return running
+    except Exception:
+        return set()
+
+
+def _clear_screen():
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def _print_tui_menu() -> bool:
+    """Отрисовывает красивое TUI меню и обрабатывает ввод. Возвращает False для выхода."""
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.prompt import Prompt
+        HAS_RICH = True
+    except ImportError:
+        HAS_RICH = False
+
+    console = Console() if HAS_RICH else None
+
+    while True:
+        _clear_screen()
+        running = _parse_status()
+        STATE["running"] = running
+
+        if HAS_RICH:
+            table = Table(show_header=False, box=None, padding=(0, 2))
+            table.add_column("Service", justify="left", width=22)
+            table.add_column("Port", justify="center", width=6)
+            table.add_column("Status", justify="center", width=12)
+            table.add_column("Service", justify="left", width=22)
+            table.add_column("Port", justify="center", width=6)
+            table.add_column("Status", justify="center", width=12)
+
+            services = list(SERVICES.items())
+            dbs = [
+                ("auth-db", "5432"),
+                ("study-db", "5433"),
+                ("finance-db", "5434"),
+                ("integration-db", "5435"),
+                ("redis", "6379"),
+            ]
+
+            max_rows = max(len(services), len(dbs) + 1)
+
+            for i in range(max_rows):
+                # Левая колонка (Сервисы)
+                if i < len(services):
+                    name, port = services[i]
+                    status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
+                    table.add_row(f"[cyan]{name}[/cyan]", str(port), status)
+                else:
+                    table.add_row("", "", "")
+
+                # Правая колонка (БД + HAProxy)
+                if i < len(dbs):
+                    name, port = dbs[i]
+                    status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
+                    table.add_row(f"[yellow]{name}[/yellow]", str(port), status)
+                elif i == len(dbs):
+                    name, port = "haproxy", "80"
+                    status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
+                    table.add_row(f"[magenta]{name}[/magenta]", str(port), status)
+                else:
+                    table.add_row("", "", "")
+
+            panel = Panel(
+                table,
+                title="[bold cyan]VuzHub — Управление микросервисами[/bold cyan]",
+                border_style="cyan",
+                expand=False
+            )
+            console.print(panel)
+
+            console.print("\n[bold yellow]Доступные действия:[/bold yellow]")
+            console.print("  [green]1[/green]. Запустить всё")
+            console.print("  [red]2[/red]. Остановить всё")
+            console.print("  [yellow]3[/yellow]. Перезапустить всё")
+            console.print("  [cyan]4-7[/cyan]. Управление сервисами (вкл/выкл)")
+            console.print("  [cyan]8-12[/cyan]. Управление БД (вкл/выкл)")
+            console.print("  [magenta]13[/magenta]. Управление HAProxy (вкл/выкл)")
+            console.print("  [white]14[/white]. Логи всех сервисов")
+            console.print("  [white]15[/white]. Статус контейнеров")
+            console.print("  [white]16[/white]. Миграции для всех")
+            console.print("  [white]17[/white]. Shell в сервисе")
+            console.print("  [red]18[/red]. Полная очистка (с volumes)")
+            console.print("  [bold red]q[/bold red]. Выход")
+
+            choice = Prompt.ask("\n[bold cyan]Ваш выбор[/bold cyan]", default="").strip()
+        else:
+            # Fallback на colorama с ASCII-графикой
+            w = 64
+            print(f"{Fore.CYAN}╭{'─' * w}╮{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}│{' VuzHub — Управление микросервисами '.center(w)}│{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}╰{'─' * w}╯{Style.RESET_ALL}\n")
+
+            print(f"{Fore.YELLOW}Доступные действия:{Style.RESET_ALL}")
+            print(f"  {Fore.GREEN}1{Style.RESET_ALL}. Запустить всё")
+            print(f"  {Fore.RED}2{Style.RESET_ALL}. Остановить всё")
+            print(f"  {Fore.YELLOW}3{Style.RESET_ALL}. Перезапустить всё")
+            print(f"  {Fore.CYAN}4-7{Style.RESET_ALL}. Управление сервисами (вкл/выкл)")
+            print(f"  {Fore.CYAN}8-12{Style.RESET_ALL}. Управление БД (вкл/выкл)")
+            print(f"  {Fore.MAGENTA}13{Style.RESET_ALL}. Управление HAProxy (вкл/выкл)")
+            print(f"  14. Логи всех сервисов")
+            print(f"  15. Статус контейнеров")
+            print(f"  16. Миграции для всех")
+            print(f"  17. Shell в сервисе")
+            print(f"  {Fore.RED}18{Style.RESET_ALL}. Полная очистка (с volumes)")
+            print(f"  {Fore.RED}q{Style.RESET_ALL}. Выход\n")
+
+            choice = input(f"{Fore.CYAN}Ваш выбор:{Style.RESET_ALL} ").strip()
+
+        if choice.lower() == 'q' or choice == '':
+            return False
+
+        if choice == '1':
+            if HAS_RICH: console.print("[green]Запуск всех сервисов...[/green]")
+            else: print(f"{Fore.GREEN}Запуск всех сервисов...{Style.RESET_ALL}")
+            run(compose_cmd("up", "-d"))
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '2':
+            if HAS_RICH: console.print("[yellow]Остановка всех сервисов...[/yellow]")
+            else: print(f"{Fore.YELLOW}Остановка всех сервисов...{Style.RESET_ALL}")
+            run(compose_cmd("stop"))
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '3':
+            if HAS_RICH: console.print("[yellow]Перезапуск всех сервисов...[/yellow]")
+            else: print(f"{Fore.YELLOW}Перезапуск всех сервисов...{Style.RESET_ALL}")
+            run(compose_cmd("restart"))
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice in ['4', '5', '6', '7']:
+            idx = int(choice) - 4
+            svc = list(SERVICES.keys())[idx]
+            if svc in running:
+                if HAS_RICH: console.print(f"[red]Остановка {svc}...[/red]")
+                else: print(f"{Fore.RED}Остановка {svc}...{Style.RESET_ALL}")
+                run(compose_cmd("stop", svc))
+            else:
+                if HAS_RICH: console.print(f"[green]Запуск {svc}...[/green]")
+                else: print(f"{Fore.GREEN}Запуск {svc}...{Style.RESET_ALL}")
+                run(compose_cmd("up", "-d", svc))
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice in ['8', '9', '10', '11', '12']:
+            idx = int(choice) - 8
+            dbs = ["auth-db", "study-db", "finance-db", "integration-db", "redis"]
+            db = dbs[idx]
+            if db in running:
+                if HAS_RICH: console.print(f"[red]Остановка {db}...[/red]")
+                else: print(f"{Fore.RED}Остановка {db}...{Style.RESET_ALL}")
+                run(compose_cmd("stop", db))
+            else:
+                if HAS_RICH: console.print(f"[green]Запуск {db}...[/green]")
+                else: print(f"{Fore.GREEN}Запуск {db}...{Style.RESET_ALL}")
+                run(compose_cmd("up", "-d", db))
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '13':
+            if "haproxy" in running:
+                if HAS_RICH: console.print("[yellow]Перезапуск HAProxy...[/yellow]")
+                else: print(f"{Fore.YELLOW}Перезапуск HAProxy...{Style.RESET_ALL}")
+                run(compose_cmd("restart", "haproxy"))
+            else:
+                if HAS_RICH: console.print("[green]Запуск HAProxy...[/green]")
+                else: print(f"{Fore.GREEN}Запуск HAProxy...{Style.RESET_ALL}")
+                run(compose_cmd("up", "-d", "haproxy"))
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '14':
+            if HAS_RICH: console.print("[yellow]Логи всех сервисов (Ctrl+C для выхода)...[/yellow]")
+            else: print(f"{Fore.YELLOW}Логи всех сервисов (Ctrl+C для выхода)...{Style.RESET_ALL}")
+            run(compose_cmd("logs", "-f"), check=False)
+
+        elif choice == '15':
+            if HAS_RICH: console.print("[cyan]=== Статус контейнеров ===[/cyan]")
+            else: print(f"{Fore.CYAN}=== Статус контейнеров ==={Style.RESET_ALL}")
+            run(compose_cmd("ps"), check=False)
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '16':
+            if HAS_RICH: console.print("[blue]Запуск миграций для всех сервисов...[/blue]")
+            else: print(f"{Fore.BLUE}Запуск миграций для всех сервисов...{Style.RESET_ALL}")
+            for svc in SERVICES:
+                if HAS_RICH: console.print(f"[cyan]--- {svc} ---[/cyan]")
+                else: print(f"{Fore.CYAN}--- {svc} ---{Style.RESET_ALL}")
+                run(compose_cmd("run", "--rm", svc, "alembic", "upgrade", "head"), check=False)
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '17':
+            if HAS_RICH: console.print("\n[cyan]Выберите номер сервиса для shell:[/cyan]")
+            else: print(f"\n{Fore.CYAN}Выберите номер сервиса для shell:{Style.RESET_ALL}")
+            for i, svc in enumerate(SERVICES, start=1):
+                if HAS_RICH: console.print(f"  {i}. {svc}")
+                else: print(f"  {i}. {svc}")
+            if HAS_RICH: console.print("  5. Redis")
+            else: print("  5. Redis")
+            shell_choice = input("\nВведите номер: ").strip()
+            try:
+                idx = int(shell_choice)
+                if 1 <= idx <= 4:
+                    svc = list(SERVICES.keys())[idx - 1]
+                    run(compose_cmd("exec", "-it", svc, "sh"), check=False)
+                elif shell_choice == '5':
+                    run(compose_cmd("exec", "-it", "redis", "sh"), check=False)
+                else:
+                    if HAS_RICH: console.print("[red]Неверный номер[/red]")
+                    else: print(f"{Fore.RED}Неверный номер{Style.RESET_ALL}")
+            except ValueError:
+                if HAS_RICH: console.print("[red]Введите число[/red]")
+                else: print(f"{Fore.RED}Введите число{Style.RESET_ALL}")
+            input("\nНажмите Enter для продолжения...")
+
+        elif choice == '18':
+            confirm = input("\nПолная очистка (удалит volumes!). Удалить? [y/N]: ").strip().lower()
+            if confirm == 'y':
+                if HAS_RICH: console.print("[red]Очистка...[/red]")
+                else: print(f"{Fore.RED}Очистка...{Style.RESET_ALL}")
+                run(compose_cmd("down", "-v", "--rmi", "local", "--remove-orphans"))
+            input("\nНажмите Enter для продолжения...")
+
+        else:
+            if HAS_RICH: console.print("[red]Неверный выбор. Попробуйте снова.[/red]")
+            else: print(f"{Fore.RED}Неверный выбор. Попробуйте снова.{Style.RESET_ALL}")
+            input("\nНажмите Enter для продолжения...")
+
+        return True
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    # Если нет аргументов — запускаем TUI
+    if args.command is None:
+        try:
+            while _print_tui_menu():
+                pass
+        except KeyboardInterrupt:
+            print(f"\n{Fore.YELLOW}Прервано пользователем{Style.RESET_ALL}")
+        finally:
+            _clear_screen()
+        return
 
     dispatch = {
         "build": cmd_build,
@@ -230,10 +564,14 @@ def main() -> None:
         "migrate": cmd_migrate,
         "migrate-all": cmd_migrate_all,
         "shell": cmd_shell,
+        "haproxy": cmd_haproxy,
     }
 
-    handler = dispatch[args.command]
-    handler(args.service)
+    handler = dispatch.get(args.command)
+    if handler:
+        handler(args.service)
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
