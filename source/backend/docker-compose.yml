@@ -210,6 +210,25 @@ services:
     restart: unless-stopped
 
   # ===================================================================
+  # HAProxy — балансировщик / reverse proxy для всех сервисов
+  # ===================================================================
+  haproxy:
+    image: haproxy:3.0-alpine
+    container_name: vuzhub-haproxy
+    ports:
+      - "${HAPROXY_PORT:-80}:80"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - auth-service
+      - study-service
+      - finance-service
+      - integration-service
+    networks:
+      - mynet
+    restart: unless-stopped
+
+  # ===================================================================
   # API GATEWAY (опционально, nginx reverse proxy)
   # ===================================================================
   # api-gateway:
