@@ -64,6 +64,21 @@ python run.py down
 
 ## Управление
 
+### Админ-панели
+
+| Панель | URL | Назначение |
+|--------|-----|------------|
+| **Adminer** | `http://localhost:8080` | Веб-интерфейс для PostgreSQL (4 БД) |
+| **Redis Commander** | `http://localhost:8081` | Веб-интерфейс для Redis |
+
+**Adminer** — при входе выбери "PostgreSQL", укажи:
+- Server: `auth-db` (или `study-db`, `finance-db`, `integration-db`)
+- Username: `postgres`
+- Password: `admin`
+- Database: `vuzhub_auth` (или другая)
+
+**Redis Commander** — подключается автоматически к Redis.
+
 ### Пересобрать образы
 
 ```bash
