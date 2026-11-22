@@ -210,6 +210,21 @@ services:
     restart: unless-stopped
 
   # ===================================================================
+  # CLIENT — Nuxt admin frontend
+  # ===================================================================
+  client:
+    build:
+      context: ../admin
+      dockerfile: Dockerfile
+    container_name: vuzhub-client
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+    networks:
+      - mynet
+    restart: unless-stopped
+
+  # ===================================================================
   # HAProxy — балансировщик / reverse proxy для всех сервисов
   # ===================================================================
   haproxy:
@@ -224,6 +239,7 @@ services:
       - study-service
       - finance-service
       - integration-service
+      - client
     networks:
       - mynet
     restart: unless-stopped

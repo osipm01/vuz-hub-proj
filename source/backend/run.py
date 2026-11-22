@@ -13,6 +13,7 @@ SERVICES = {
     "study-service": 8002,
     "finance-service": 8003,
     "integration-service": 8004,
+    "client": 3000,
 }
 
 # Все контейнеры (сервисы + БД + HAProxy)
@@ -30,6 +31,7 @@ DB_MAP = {
     "study-service": "study-db",
     "finance-service": "finance-db",
     "integration-service": "integration-db",
+    "client": None,  # клиент не имеет БД
 }
 
 # ТУИ — текущее состояние

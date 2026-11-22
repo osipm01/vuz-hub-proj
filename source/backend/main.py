@@ -57,10 +57,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS — временно разрешаем всё, потом настроим по умолчанию
+    # CORS — разрешаем запросы от клиента (localhost:3000) и самого HAProxy (localhost:80)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=["http://localhost:3000", "http://localhost"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
