@@ -313,6 +313,7 @@ def _parse_status() -> set:
                         elif "study-service" in name: running.add("study-service")
                         elif "finance-service" in name: running.add("finance-service")
                         elif "integration-service" in name: running.add("integration-service")
+                        elif "vuzhub-client" in name: running.add("client")
                         elif "auth-db" in name: running.add("auth-db")
                         elif "study-db" in name: running.add("study-db")
                         elif "finance-db" in name: running.add("finance-db")
@@ -366,7 +367,7 @@ def _print_tui_menu() -> bool:
                 ("redis", "6379"),
             ]
 
-            max_rows = max(len(services), len(dbs) + 1)
+            max_rows = max(len(services), len(dbs) + 2)
 
             for i in range(max_rows):
                 # Левая колонка (Сервисы)
@@ -375,7 +376,7 @@ def _print_tui_menu() -> bool:
                     status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
                     table.add_row(f"[cyan]{name}[/cyan]", str(port), status)
                 else:
-                    table.add_row("", "", "")
+                    table.add_row("", "", "", "", "", "")
 
                 # Правая колонка (БД + админки)
                 if i < len(dbs):
@@ -387,15 +388,19 @@ def _print_tui_menu() -> bool:
                     status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
                     table.add_row(f"[magenta]{name}[/magenta]", str(port), status)
                 elif i == len(dbs) + 1:
-                    name, port = "adminer", "8080"
+                    name, port = "client", "3000"
                     status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
                     table.add_row(f"[green]{name}[/green]", str(port), status)
                 elif i == len(dbs) + 2:
+                    name, port = "adminer", "8080"
+                    status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
+                    table.add_row(f"[green]{name}[/green]", str(port), status)
+                elif i == len(dbs) + 3:
                     name, port = "redis-commander", "8081"
                     status = "[green]● Running[/green]" if name in running else "[red]○ Stopped[/red]"
                     table.add_row(f"[green]{name}[/green]", str(port), status)
                 else:
-                    table.add_row("", "", "")
+                    table.add_row("", "", "", "", "", "")
 
             panel = Panel(
                 table,
@@ -409,17 +414,17 @@ def _print_tui_menu() -> bool:
             console.print("  [green]1[/green]. Запустить всё")
             console.print("  [red]2[/red]. Остановить всё")
             console.print("  [yellow]3[/yellow]. Перезапустить всё")
-            console.print("  [cyan]4-7[/cyan]. Управление сервисами (вкл/выкл)")
-            console.print("  [cyan]8-12[/cyan]. Управление БД (вкл/выкл)")
-            console.print("  [magenta]13[/magenta]. Управление HAProxy (вкл/выкл)")
-            console.print("  [green]14[/green]. Управление Adminer (вкл/выкл)")
-            console.print("  [green]15[/green]. Управление Redis Commander (вкл/выкл)")
-            console.print("  [white]16[/white]. Логи всех сервисов")
-            console.print("  [white]17[/white]. Статус контейнеров")
-            console.print("  [white]18[/white]. Миграции для всех")
-            console.print("  [white]19[/white]. Shell в сервисе")
-            console.print("  [magenta]20[/magenta]. Создать администратора")
-            console.print("  [red]21[/red]. Полная очистка (с volumes)")
+            console.print("  [cyan]4-8[/cyan]. Управление сервисами (вкл/выкл)")
+            console.print("  [cyan]9-13[/cyan]. Управление БД (вкл/выкл)")
+            console.print("  [magenta]14[/magenta]. Управление HAProxy (вкл/выкл)")
+            console.print("  [green]15[/green]. Управление Adminer (вкл/выкл)")
+            console.print("  [green]16[/green]. Управление Redis Commander (вкл/выкл)")
+            console.print("  [white]17[/white]. Логи всех сервисов")
+            console.print("  [white]18[/white]. Статус контейнеров")
+            console.print("  [white]19[/white]. Миграции для всех")
+            console.print("  [white]20[/white]. Shell в сервисе")
+            console.print("  [magenta]21[/magenta]. Создать администратора")
+            console.print("  [red]22[/red]. Полная очистка (с volumes)")
             console.print("  [bold red]q[/bold red]. Выход")
 
             choice = Prompt.ask("\n[bold cyan]Ваш выбор[/bold cyan]", default="").strip()
@@ -434,17 +439,17 @@ def _print_tui_menu() -> bool:
             print(f"  {Fore.GREEN}1{Style.RESET_ALL}. Запустить всё")
             print(f"  {Fore.RED}2{Style.RESET_ALL}. Остановить всё")
             print(f"  {Fore.YELLOW}3{Style.RESET_ALL}. Перезапустить всё")
-            print(f"  {Fore.CYAN}4-7{Style.RESET_ALL}. Управление сервисами (вкл/выкл)")
-            print(f"  {Fore.CYAN}8-12{Style.RESET_ALL}. Управление БД (вкл/выкл)")
-            print(f"  {Fore.MAGENTA}13{Style.RESET_ALL}. Управление HAProxy (вкл/выкл)")
-            print(f"  {Fore.GREEN}14{Style.RESET_ALL}. Управление Adminer (вкл/выкл)")
-            print(f"  {Fore.GREEN}15{Style.RESET_ALL}. Управление Redis Commander (вкл/выкл)")
-            print(f"  16. Логи всех сервисов")
-            print(f"  17. Статус контейнеров")
-            print(f"  18. Миграции для всех")
-            print(f"  19. Shell в сервисе")
-            print(f"  {Fore.MAGENTA}20{Style.RESET_ALL}. Создать администратора")
-            print(f"  {Fore.RED}21{Style.RESET_ALL}. Полная очистка (с volumes)")
+            print(f"  {Fore.CYAN}4-8{Style.RESET_ALL}. Управление сервисами (вкл/выкл)")
+            print(f"  {Fore.CYAN}9-13{Style.RESET_ALL}. Управление БД (вкл/выкл)")
+            print(f"  {Fore.MAGENTA}14{Style.RESET_ALL}. Управление HAProxy (вкл/выкл)")
+            print(f"  {Fore.GREEN}15{Style.RESET_ALL}. Управление Adminer (вкл/выкл)")
+            print(f"  {Fore.GREEN}16{Style.RESET_ALL}. Управление Redis Commander (вкл/выкл)")
+            print(f"  17. Логи всех сервисов")
+            print(f"  18. Статус контейнеров")
+            print(f"  19. Миграции для всех")
+            print(f"  20. Shell в сервисе")
+            print(f"  {Fore.MAGENTA}21{Style.RESET_ALL}. Создать администратора")
+            print(f"  {Fore.RED}22{Style.RESET_ALL}. Полная очистка (с volumes)")
             print(f"  {Fore.RED}q{Style.RESET_ALL}. Выход\n")
 
             choice = input(f"{Fore.CYAN}Ваш выбор:{Style.RESET_ALL} ").strip()
@@ -470,7 +475,7 @@ def _print_tui_menu() -> bool:
             run(compose_cmd("restart"))
             input("\nНажмите Enter для продолжения...")
 
-        elif choice in ['4', '5', '6', '7']:
+        elif choice in ['4', '5', '6', '7', '8']:
             idx = int(choice) - 4
             svc = list(SERVICES.keys())[idx]
             if svc in running:
@@ -483,8 +488,8 @@ def _print_tui_menu() -> bool:
                 run(compose_cmd("up", "-d", svc))
             input("\nНажмите Enter для продолжения...")
 
-        elif choice in ['8', '9', '10', '11', '12']:
-            idx = int(choice) - 8
+        elif choice in ['9', '10', '11', '12', '13']:
+            idx = int(choice) - 9
             dbs = ["auth-db", "study-db", "finance-db", "integration-db", "redis"]
             db = dbs[idx]
             if db in running:
@@ -497,7 +502,7 @@ def _print_tui_menu() -> bool:
                 run(compose_cmd("up", "-d", db))
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '13':
+        elif choice == '14':
             if "haproxy" in running:
                 if HAS_RICH: console.print("[yellow]Перезапуск HAProxy...[/yellow]")
                 else: print(f"{Fore.YELLOW}Перезапуск HAProxy...{Style.RESET_ALL}")
@@ -508,7 +513,7 @@ def _print_tui_menu() -> bool:
                 run(compose_cmd("up", "-d", "haproxy"))
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '14':
+        elif choice == '15':
             if "adminer" in running:
                 if HAS_RICH: console.print("[yellow]Перезапуск Adminer...[/yellow]")
                 else: print(f"{Fore.YELLOW}Перезапуск Adminer...{Style.RESET_ALL}")
@@ -519,7 +524,7 @@ def _print_tui_menu() -> bool:
                 run(compose_cmd("up", "-d", "adminer"))
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '15':
+        elif choice == '16':
             if "redis-commander" in running:
                 if HAS_RICH: console.print("[yellow]Перезапуск Redis Commander...[/yellow]")
                 else: print(f"{Fore.YELLOW}Перезапуск Redis Commander...{Style.RESET_ALL}")
@@ -550,21 +555,21 @@ def _print_tui_menu() -> bool:
                 run(compose_cmd("run", "--rm", svc, "alembic", "upgrade", "head"), check=False)
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '19':
+        elif choice == '20':
             if HAS_RICH: console.print("\n[cyan]Выберите номер сервиса для shell:[/cyan]")
             else: print(f"\n{Fore.CYAN}Выберите номер сервиса для shell:{Style.RESET_ALL}")
             for i, svc in enumerate(SERVICES, start=1):
                 if HAS_RICH: console.print(f"  {i}. {svc}")
                 else: print(f"  {i}. {svc}")
-            if HAS_RICH: console.print("  5. Redis")
-            else: print("  5. Redis")
+            if HAS_RICH: console.print("  6. Redis")
+            else: print("  6. Redis")
             shell_choice = input("\nВведите номер: ").strip()
             try:
                 idx = int(shell_choice)
-                if 1 <= idx <= 4:
+                if 1 <= idx <= 5:
                     svc = list(SERVICES.keys())[idx - 1]
                     run(compose_cmd("exec", "-it", svc, "sh"), check=False)
-                elif shell_choice == '5':
+                elif shell_choice == '6':
                     run(compose_cmd("exec", "-it", "redis", "sh"), check=False)
                 else:
                     if HAS_RICH: console.print("[red]Неверный номер[/red]")
@@ -574,11 +579,11 @@ def _print_tui_menu() -> bool:
                 else: print(f"{Fore.RED}Введите число{Style.RESET_ALL}")
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '20':
+        elif choice == '21':
             cmd_create_admin(None)
             input("\nНажмите Enter для продолжения...")
 
-        elif choice == '21':
+        elif choice == '22':
             confirm = input("\nПолная очистка (удалит volumes!). Удалить? [y/N]: ").strip().lower()
             if confirm == 'y':
                 if HAS_RICH: console.print("[red]Очистка...[/red]")
