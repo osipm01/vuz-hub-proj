@@ -51,6 +51,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (isLoginPage && state.value.authenticated) {
-    return navigateTo('/')
+    return navigateTo('/init')
   }
 })

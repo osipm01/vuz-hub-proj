@@ -6,39 +6,32 @@ interface AuthState {
   pending: boolean
 }
 
-const state: AuthState = useState<AuthState>('auth:state', () => ({
-  authenticated: false,
-  user: null,
-  pending: true,
-}))
+export function useAuthHydration(): Ref<AuthState> {
+  // Вызываем useState строго внутри композабла
+  const state = useState<AuthState>('auth:state', () => ({
+    authenticated: false,
+    user: null,
+    pending: true,
+  }))
 
-export function useAuthHydration(): void {
-  if (import.meta.server) {
-    return
+  // Запускаем проверку только на клиенте и только один раз, пока pending === true
+  if (import.meta.client && state.value.pending) {
+    $fetch<UserRead>('/api/auth/me')
+      .then((user) => {
+        state.value = {
+          authenticated: true,
+          user,
+          pending: false,
+        }
+      })
+      .catch(() => {
+        state.value = {
+          authenticated: false,
+          user: null,
+          pending: false,
+        }
+      })
   }
 
-  const check: () => Promise<void> = async () => {
-    try {
-      const user: UserRead = await $fetch<UserRead>('/api/auth/me')
-      state.value = {
-        authenticated: true,
-        user,
-        pending: false,
-      }
-    }
-    catch {
-      state.value = {
-        authenticated: false,
-        user: null,
-        pending: false,
-      }
-    }
-  }
-
-  // Run immediately on hydration, not onMounted
-  check()
-}
-
-export function getAuthState(): AuthState {
-  return state.value
+  return state
 }

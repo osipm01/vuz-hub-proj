@@ -40,17 +40,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, type Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { LoginRequest } from '~/types/auth'
 import { AuthError, ValidationError, ApiError } from '~/types/apiError'
 import { useToast } from '~/composables/useToast'
-
-interface FormErrors {
-  emailError: string | null
-  passwordError: string | null
-  genericError: string | null
-}
 
 definePageMeta({
   middleware: 'auth',
@@ -62,28 +56,26 @@ const toast: ReturnType<typeof useToast> = useToast()
 const email: Ref<string> = ref('')
 const password: Ref<string> = ref('')
 const isSubmitting: Ref<boolean> = ref(false)
-const errors: FormErrors = reactive({
-  emailError: null,
-  passwordError: null,
-  genericError: null,
-})
+const emailError: Ref<string | null> = ref(null)
+const passwordError: Ref<string | null> = ref(null)
+const genericError: Ref<string | null> = ref(null)
 
 const clearErrors = (): void => {
-  errors.emailError = null
-  errors.passwordError = null
-  errors.genericError = null
+  emailError.value = null
+  passwordError.value = null
+  genericError.value = null
 }
 
 const validateInput = (): boolean => {
   clearErrors()
 
   if (!email.value) {
-    errors.emailError = 'Email обязателен'
+    emailError.value = 'Email обязателен'
     return false
   }
 
   if (!password.value) {
-    errors.passwordError = 'Пароль обязателен'
+    passwordError.value = 'Пароль обязателен'
     return false
   }
 
@@ -101,31 +93,31 @@ const handleLogin = async (): Promise<void> => {
     const loginRequest: LoginRequest = { email: email.value, password: password.value }
     await $fetch('/api/auth/login', { method: 'POST', body: loginRequest })
 
-    useState<boolean>('auth:isAuthenticated', () => true).value = true
+    useState<AuthState>('auth:state').value.authenticated = true
     toast.addSuccess('Вы успешно вошли в систему')
-    router.push('/')
+    return navigateTo('/init')
   }
   catch (err: unknown) {
     clearErrors()
 
     if (err instanceof ValidationError) {
       if (err.field === 'email') {
-        errors.emailError = err.message
+        emailError.value = err.message
       }
       else {
-        errors.passwordError = err.message
+        passwordError.value = err.message
       }
     }
     else if (err instanceof AuthError) {
-      errors.genericError = 'Неверный email или пароль'
+      genericError.value = 'Неверный email или пароль'
       toast.addError('Неверный email или пароль')
     }
     else if (err instanceof ApiError) {
-      errors.genericError = err.message
+      genericError.value = err.message
       toast.addError(err.message)
     }
     else {
-      errors.genericError = 'Произошла ошибка. Попробуйте позже'
+      genericError.value = 'Произошла ошибка. Попробуйте позже'
       toast.addError('Произошла ошибка. Попробуйте позже')
     }
   }
