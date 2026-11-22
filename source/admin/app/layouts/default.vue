@@ -8,10 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { useAuthHydration } from '~/composables/useAuthHydration'
-
-const hydration = useAuthHydration()
-const isAuthenticated: boolean = computed(() => hydration.value.authenticated)
+const isAuthenticated: boolean = useAuthHydration()
 </script>
 
 <style scoped>

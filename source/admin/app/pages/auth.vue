@@ -95,7 +95,7 @@ const handleLogin = async (): Promise<void> => {
 
     useState<AuthState>('auth:state').value.authenticated = true
     toast.addSuccess('Вы успешно вошли в систему')
-    return navigateTo('/init')
+    return navigateTo('/')
   }
   catch (err: unknown) {
     clearErrors()
