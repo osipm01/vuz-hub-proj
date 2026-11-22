@@ -1,7 +1,7 @@
 export default defineEventHandler(async (event) => {
   const body: { email: string; password: string } = await readBody(event)
 
-  const response: Response = await fetch('http://localhost:8001/auth/login', {
+  const response: Response = await fetch('http://localhost:80/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

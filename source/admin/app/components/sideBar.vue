@@ -104,8 +104,25 @@
         flex-direction: column;
         align-items: flex-start;
         justify-content: center;
-        gap: 8px;
+        gap: 4px;
         color: aliceblue;
+    }
+
+    .profile-id {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.4);
+    }
+
+    .profile-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #ffffff;
+    }
+
+    .profile-role {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
     }
 
     .link_blok {
@@ -165,9 +182,10 @@
 <template>
   <div class="sidebar">
     <div class="profile_containner">
-      <span>1</span>
-      <span>2</span>
-      <span>3</span>
+      <span v-if="user" class="profile-id">{{ user.id }}</span>
+      <span v-if="user" class="profile-name">{{ user.name }}</span>
+      <span v-if="user" class="profile-role">{{ user.role }}</span>
+      <span v-else>...</span>
     </div>
 
     <div class="link_blok">
@@ -181,14 +199,30 @@
 </template>
 
 <script setup lang="ts">
+import { computed, type Ref } from 'vue'
+import type { UserRead } from '~/types/user'
 import { useToast } from '~/composables/useToast'
 
 const toast: ReturnType<typeof useToast> = useToast()
 
+interface AuthState {
+  authenticated: boolean
+  user: UserRead | null
+}
+
+const authState: AuthState = useState<AuthState>('auth:state', () => ({
+  authenticated: false,
+  user: null,
+}))
+
+const user: Ref<UserRead | null> = computed(() => authState.value.user)
+
+console.log(user);
+
 const handleLogoutBtn = async (): Promise<void> => {
   try {
     await $fetch('/api/auth/logout', { method: 'POST' })
-    useState<boolean>('auth:isAuthenticated', () => false).value = false
+    authState.value = { authenticated: false, user: null }
     toast.addSuccess('Вы вышли из системы')
   }
   catch {

@@ -1,6 +1,6 @@
 import { ApiError } from '~/types/apiError'
 
-const API_BASE_URL: string = 'http://localhost:8001'
+const API_BASE_URL: string = 'http://localhost:80'
 
 export class ApiService {
   private readonly baseUrl: string

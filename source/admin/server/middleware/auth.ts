@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     }
     else {
       try {
-        const response: Response = await fetch('http://localhost:8001/users/me', {
+        const response: Response = await fetch('http://localhost:80/users/me', {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${token}` },
         })
