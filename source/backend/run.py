@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Кроссплатформенный скрипт для управления микросервисами через Docker."""
 import argparse
 import os
 import subprocess
