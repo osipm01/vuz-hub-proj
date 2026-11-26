@@ -8,7 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.finance.debt_crud import debt_crud
-from schemas.finance.finance_schema import Debt, DebtCreate, DebtUpdate
+from models.finance import Debt
+from schemas.finance.finance_schema import DebtCreate, DebtUpdate
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.study.group_crud import group_crud
-from schemas.study.study_schema import Group, GroupCreate, GroupUpdate
+from models.study import Group
+from schemas.study.study_schema import GroupCreate, GroupUpdate
 
 logger = logging.getLogger(__name__)
 

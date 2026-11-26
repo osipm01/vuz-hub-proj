@@ -13,7 +13,10 @@
       "Bash(rm *)",
       "Bash(python *)",
       "Bash(pip3 install *)",
-      "Bash(docker compose config *)"
+      "Bash(docker compose config *)",
+      "Bash(pip install *)",
+      "Bash(.venv/bin/pip *)",
+      "Bash(.venv/bin/python3 *)"
     ]
   },
   "$version": 3

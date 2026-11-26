@@ -4,13 +4,13 @@ import logging
 from typing import Final, Optional, Sequence
 
 from fastapi import HTTPException, status
-from sqlalchemy import SQLAlchemyError
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.auth.user_crud import user_crud
 from enums.user_enums import SocialNetworkLinkType, UserRole
-from schemas.auth.user_schema import User, UserCreate, UserUpdate
+from models.auth import User
+from schemas.auth.user_schema import UserCreate, UserUpdate
 
 logger = logging.getLogger(__name__)
 

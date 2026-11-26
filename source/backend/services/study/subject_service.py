@@ -8,7 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.study.subject_crud import subject_crud
-from schemas.study.study_schema import Subject, SubjectCreate, SubjectUpdate
+from models.study import Subject
+from schemas.study.study_schema import SubjectCreate, SubjectUpdate
 
 logger = logging.getLogger(__name__)
 

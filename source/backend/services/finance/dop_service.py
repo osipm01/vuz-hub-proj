@@ -8,7 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.finance.dop_crud import dop_crud
-from schemas.finance.finance_schema import Dop, DopCreate, DopUpdate
+from models.finance import Dop
+from schemas.finance.finance_schema import DopCreate, DopUpdate
 
 logger = logging.getLogger(__name__)
 

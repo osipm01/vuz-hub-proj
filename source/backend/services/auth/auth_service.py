@@ -6,8 +6,7 @@ from typing import Final
 
 import bcrypt
 from fastapi import HTTPException, status
-from sqlalchemy import SQLAlchemyError
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.auth.user_crud import user_crud
@@ -16,8 +15,6 @@ from schemas.auth.user_schema import UserCreate
 from services.auth.jwt_service import jwt_service
 
 logger = logging.getLogger(__name__)
-
-_RESERVED_CLAIMS = frozenset({"sub", "type", "exp", "iat", "role", "bot_id", "integration_id"})
 
 
 class AuthService:
