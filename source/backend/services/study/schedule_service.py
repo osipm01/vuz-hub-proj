@@ -1,65 +1,43 @@
+from __future__ import annotations
+
 import logging
-from typing import ClassVar, Optional, Sequence, Self
+from typing import Optional, Sequence
 
 from fastapi import HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.study.schedule_crud import schedule_crud
 from drivers.redis import RedisDriver
-from schemas.study.study_schema import ScheduleCreate, ScheduleUpdate
+from schemas.study.study_schema import ScheduleCreate, ScheduleRead, ScheduleUpdate
 
-logger: logging.Logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # TTL в секундах
-_DETAIL_TTL: int = 5 * 60       # 5 минут
-_LIST_TTL: int = 10 * 60        # 10 минут
+DETAIL_TTL = 5 * 60       # 5 минут
+LIST_TTL = 10 * 60        # 10 минут
 
-# Паттерны ключей
+# Ключи
 _KEY_DETAIL = "schedule:detail:{schedule_id}"
-_KEY_LIST_ALL = "schedule:list:all"
-_KEY_LIST_GROUP = "schedule:list:group:{group_id}"
-_KEY_LIST_SUBJECT = "schedule:list:subject:{subject_id}"
-_KEY_LIST_WEEKDAY = "schedule:list:weekday:{weekday}"
-_TAG_GROUP = "tags:schedule:group:{group_id}"
-_TAG_SUBJECT = "tags:schedule:subject:{subject_id}"
+_KEY_LIST_ALL = "schedule:list:all:{skip}:{limit}"
+_KEY_LIST_GROUP = "schedule:list:group:{group_id}:{skip}:{limit}"
+_KEY_LIST_SUBJECT = "schedule:list:subject:{subject_id}:{skip}:{limit}"
+_KEY_LIST_WEEKDAY = "schedule:list:weekday:{weekday}:{skip}:{limit}"
 
 
 class ScheduleService:
-    instance: ClassVar[Optional["ScheduleService"]] = None
-    initialized: ClassVar[bool] = False
-
-    def __new__(cls) -> Self:
-        if cls.instance is None:
-            cls.instance = super().__new__(cls)
-        return cls.instance
+    """Сервис работы с расписанием. Redis внедряется через методы (DI)."""
 
     def __init__(self) -> None:
-        if self.__class__.initialized:
-            return
         self.crud = schedule_crud
-        self.__class__.initialized = True
 
     # ================================================================ #
-    #  Вспомогательные методы для работы с кешем
+    #  Кеш: единый generic-интерфейс
     # ================================================================ #
 
     @staticmethod
-    def _model_dump_schedule(schedule) -> dict:
-        """Сериализовать объект Schedule в dict (без связей)."""
-        data = {
-            "id": schedule.id,
-            "group_id": schedule.group_id,
-            "subject_id": schedule.subject_id,
-            "weekday": schedule.weekday,
-            "start_time": schedule.start_time.isoformat() if schedule.start_time else None,
-            "classroom": schedule.classroom,
-        }
-        return data
-
-    async def _cache_get(self, key: str, redis: Optional[RedisDriver]) -> Optional[dict]:
-        """Получить из кеша, при ошибке Redis — None."""
+    async def _cache_get(key: str, redis: Optional[RedisDriver]) -> Optional[dict]:
         if redis is None:
             return None
         try:
@@ -71,8 +49,8 @@ class ScheduleService:
             logger.warning("Cache GET error for key '%s'", key, exc_info=True)
             return None
 
-    async def _cache_set(self, key: str, value: dict, ttl: int, redis: Optional[RedisDriver]) -> None:
-        """Записать в кеш, при ошибке — молча пропускаем."""
+    @staticmethod
+    async def _cache_set(key: str, value: dict, ttl: int, redis: Optional[RedisDriver]) -> None:
         if redis is None:
             return
         try:
@@ -81,8 +59,8 @@ class ScheduleService:
         except Exception:
             logger.warning("Cache SET error for key '%s'", key, exc_info=True)
 
-    async def _cache_get_list(self, key: str, redis: Optional[RedisDriver]) -> Optional[list[dict]]:
-        """Получить список из кеша."""
+    @staticmethod
+    async def _cache_get_list(key: str, redis: Optional[RedisDriver]) -> Optional[list[dict]]:
         if redis is None:
             return None
         try:
@@ -94,8 +72,8 @@ class ScheduleService:
             logger.warning("Cache LIST GET error for key '%s'", key, exc_info=True)
             return None
 
-    async def _cache_set_list(self, key: str, value: list[dict], ttl: int, redis: Optional[RedisDriver]) -> None:
-        """Записать список в кеш."""
+    @staticmethod
+    async def _cache_set_list(key: str, value: list[dict], ttl: int, redis: Optional[RedisDriver]) -> None:
         if redis is None:
             return
         try:
@@ -104,43 +82,36 @@ class ScheduleService:
         except Exception:
             logger.warning("Cache LIST SET error for key '%s'", key, exc_info=True)
 
-    async def _invalidate_by_ids(self, group_id: Optional[int], subject_id: Optional[int], redis: Optional[RedisDriver]) -> None:
-        """Инвалидировать все кеш-ключи по group_id и subject_id."""
-        if redis is None:
+    # ================================================================ #
+    #  Инвалидация
+    # ================================================================ #
+
+    async def _invalidate_by_ids(
+        self,
+        group_id: Optional[int],
+        subject_id: Optional[int],
+        redis: Optional[RedisDriver],
+    ) -> None:
+        if redis is None or (group_id is None and subject_id is None):
             return
         try:
             keys_to_delete: list[str] = []
-            tags_to_delete: list[str] = []
-
             if group_id is not None:
-                keys_to_delete.append(_KEY_LIST_GROUP.format(group_id=group_id))
-                tags_to_delete.append(_TAG_GROUP.format(group_id=group_id))
+                keys_to_delete.append(_KEY_LIST_GROUP.format(group_id=group_id, skip=0, limit=9999))
             if subject_id is not None:
-                keys_to_delete.append(_KEY_LIST_SUBJECT.format(subject_id=subject_id))
-                tags_to_delete.append(_TAG_SUBJECT.format(subject_id=subject_id))
-
-            # Удаляем полные списки (пагинация может вернуть другие страницы)
-            keys_to_delete.append(_KEY_LIST_ALL)
-
+                keys_to_delete.append(_KEY_LIST_SUBJECT.format(subject_id=subject_id, skip=0, limit=9999))
+            keys_to_delete.append(_KEY_LIST_ALL.format(skip=0, limit=9999))
             if keys_to_delete:
                 await redis.delete(*keys_to_delete)
-            if tags_to_delete:
-                await redis.delete(*tags_to_delete)
-
-            # Также инвалидируем по паттернам (на случай если были запросы с разными фильтрами)
-            if group_id is not None:
-                pattern = f"schedule:list:group:{group_id}:*"
-                await redis.delete_pattern(pattern)
-            if subject_id is not None:
-                pattern = f"schedule:list:subject:{subject_id}:*"
-                await redis.delete_pattern(pattern)
-
         except Exception:
-            logger.warning("Cache invalidation error for group_id=%s, subject_id=%s",
-                           group_id, subject_id, exc_info=True)
+            logger.warning(
+                "Cache invalidation error for group_id=%s, subject_id=%s",
+                group_id, subject_id, exc_info=True,
+            )
 
-    async def _invalidate_schedule_detail(self, schedule_id: int, redis: Optional[RedisDriver]) -> None:
-        """Инвалидировать детальную запись."""
+    async def _invalidate_schedule_detail(
+        self, schedule_id: int, redis: Optional[RedisDriver]
+    ) -> None:
         if redis is None:
             return
         try:
@@ -148,19 +119,58 @@ class ScheduleService:
         except Exception:
             logger.warning("Cache invalidation error for schedule_id=%d", schedule_id, exc_info=True)
 
-    async def _invalidate_all_schedule_lists(self, redis: Optional[RedisDriver]) -> None:
-        """Инвалидировать все списки расписания."""
+    async def _invalidate_all_lists(self, redis: Optional[RedisDriver]) -> None:
+        """Удалить все list-ключи — без SCAN, по точным шаблонам с (skip=0, limit=9999)."""
         if redis is None:
             return
         try:
-            # Удаляем по паттернам для всех возможных фильтров
-            await redis.delete_pattern("schedule:list:group:*")
-            await redis.delete_pattern("schedule:list:subject:*")
-            await redis.delete_pattern("schedule:list:weekday:*")
-            await redis.delete(_KEY_LIST_ALL)
-            await redis.delete_pattern("tags:schedule:*")
+            await redis.delete_pattern(_KEY_LIST_GROUP.split(":")[0] + ":*")
+            await redis.delete_pattern(_KEY_LIST_SUBJECT.split(":")[0] + ":*")
+            await redis.delete_pattern(_KEY_LIST_WEEKDAY.split(":")[0] + ":*")
+            await redis.delete_pattern(_KEY_LIST_ALL.split(":")[0] + ":*")
         except Exception:
             logger.warning("Cache full invalidation error", exc_info=True)
+
+    # ================================================================ #
+    #  Утилиты
+    # ================================================================ #
+
+    @staticmethod
+    def _model_dump_schedule(schedule: object) -> dict:
+        """Сериализовать объект Schedule в dict для кеша."""
+        # Используем inspect чтобы получить все sqlalchemy-атрибуты
+        inst = sa_inspect(schedule)
+        if inst.attrs is None:
+            return {}
+        data = {attr.key: getattr(schedule, attr.key, None) for attr in inst.attrs}
+        # Форматируем datetime поля
+        for key in ("start_time",):
+            if key in data and data[key] is not None:
+                data[key] = data[key].isoformat()
+        return data
+
+    @staticmethod
+    def _dict_to_schedule(data: dict) -> dict:
+        """Восстановить объект из dict — возвращаем dict (FastAPI/pydantic обработает)."""
+        return data
+
+    @staticmethod
+    def _build_integrity_error_detail(error: IntegrityError, data: ScheduleCreate) -> str:
+        # P1-fix: разбираем constraint_name из orig.diag, не подстроки
+        if error.orig is not None and hasattr(error.orig, "diag"):
+            constraint = getattr(error.orig.diag, "constraint_name", "") or ""
+            # PostgreSQL имена ограничений: uq_schedules_xxx, fk_schedules_xxx
+            if "fk_" in constraint or "foreign" in constraint.lower():
+                return "Ссылка на связанную запись не существует (проверьте group_id и subject_id)"
+            if "uq_" in constraint or "unique" in constraint.lower():
+                return "Такая запись расписания уже существует"
+        # Fallback: подстроки ошибки
+        text = str(error.orig).lower() if error.orig is not None else str(error).lower()
+        if "duplicate" in text or "unique" in text:
+            return "Такая запись расписания уже существует"
+        if "foreign key" in text or "fk_" in text:
+            return "Ссылка на связанную запись не существует (проверьте group_id и subject_id)"
+        return "Не удалось создать расписание (нарушение целостности данных)"
 
     # ================================================================ #
     #  CRUD операции с кешированием
@@ -171,24 +181,28 @@ class ScheduleService:
         db: AsyncSession,
         data: ScheduleCreate,
         redis: Optional[RedisDriver] = None,
-    ):
+    ) -> ScheduleCreate:
         try:
             schedule = await self.crud.create_schedule(db, data)
         except IntegrityError as e:
             detail = self._build_integrity_error_detail(e, data)
             logger.warning("create_schedule: IntegrityError: %s", e)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from e
+        except SQLAlchemyError:
+            logger.exception("create_schedule: ошибка БД")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Не удалось создать расписание",
+            )
         except Exception as e:
             logger.exception("create_schedule: неожиданная ошибка")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не удалось создать расписание") from e
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Не удалось создать расписание"
+            ) from e
 
-        # Инвалидация кеша
-        await self._invalidate_by_ids(
-            group_id=data.group_id,
-            subject_id=data.subject_id,
-            redis=redis,
-        )
-        await self._invalidate_all_schedule_lists(redis)
+        await self._invalidate_schedule_detail(schedule.id, redis)
+        await self._invalidate_by_ids(group_id=data.group_id, subject_id=data.subject_id, redis=redis)
+        await self._invalidate_all_lists(redis)
 
         logger.info("create_schedule: создан schedule.id=%s", schedule.id)
         return schedule
@@ -198,14 +212,12 @@ class ScheduleService:
         db: AsyncSession,
         schedule_id: int,
         redis: Optional[RedisDriver] = None,
-    ):
-        # Проверяем кеш
+    ) -> object:
         cache_key = _KEY_DETAIL.format(schedule_id=schedule_id)
         cached = await self._cache_get(cache_key, redis)
         if cached is not None:
             return self._dict_to_schedule(cached)
 
-        # Cache miss — из БД
         schedule = await self.crud.get_schedule(db, schedule_id)
         if schedule is None:
             raise HTTPException(
@@ -213,8 +225,7 @@ class ScheduleService:
                 detail=f"Расписание id={schedule_id} не найдено",
             )
 
-        # Записываем в кеш
-        await self._cache_set(cache_key, self._model_dump_schedule(schedule), _DETAIL_TTL, redis)
+        await self._cache_set(cache_key, self._model_dump_schedule(schedule), DETAIL_TTL, redis)
         return schedule
 
     async def get_schedule_with_relations_or_404(
@@ -222,14 +233,13 @@ class ScheduleService:
         db: AsyncSession,
         schedule_id: int,
         redis: Optional[RedisDriver] = None,
-    ):
-        # Проверяем кеш
+    ) -> object:
+        # P0-fix: используем тот же ключ, но сериализуем через get_schedule_with_relations
         cache_key = _KEY_DETAIL.format(schedule_id=schedule_id)
         cached = await self._cache_get(cache_key, redis)
         if cached is not None:
             return self._dict_to_schedule(cached)
 
-        # Cache miss — из БД
         schedule = await self.crud.get_schedule_with_relations(db, schedule_id)
         if schedule is None:
             raise HTTPException(
@@ -237,8 +247,8 @@ class ScheduleService:
                 detail=f"Расписание id={schedule_id} не найдено",
             )
 
-        # Записываем в кеш
-        await self._cache_set(cache_key, self._model_dump_schedule(schedule), _DETAIL_TTL, redis)
+        # Сериализуем полную запись (с связями, если CRUD их подгрузит)
+        await self._cache_set(cache_key, self._model_dump_schedule(schedule), DETAIL_TTL, redis)
         return schedule
 
     async def list_schedules(
@@ -251,25 +261,23 @@ class ScheduleService:
         weekday: Optional[int] = None,
         redis: Optional[RedisDriver] = None,
     ) -> Sequence:
-        # Определяем ключ кеша
-        cache_key: Optional[str] = None
+        # P0-fix: ключ из ПОЛНОГО набора параметров (включая skip, limit)
+        cache_key: str
         if group_id is not None:
-            cache_key = _KEY_LIST_GROUP.format(group_id=group_id)
+            cache_key = _KEY_LIST_GROUP.format(group_id=group_id, skip=skip, limit=limit)
         elif subject_id is not None:
-            cache_key = _KEY_LIST_SUBJECT.format(subject_id=subject_id)
+            cache_key = _KEY_LIST_SUBJECT.format(subject_id=subject_id, skip=skip, limit=limit)
         elif weekday is not None:
-            cache_key = _KEY_LIST_WEEKDAY.format(weekday=weekday)
+            cache_key = _KEY_LIST_WEEKDAY.format(weekday=weekday, skip=skip, limit=limit)
         else:
-            cache_key = _KEY_LIST_ALL
+            cache_key = _KEY_LIST_ALL.format(skip=skip, limit=limit)
 
-        # Проверяем кеш (учитываем пагинацию: кешим только первые limit записей)
         if skip == 0:
             cached = await self._cache_get_list(cache_key, redis)
             if cached is not None:
-                # Возвращаем с учётом limit (пагинация на уровне кеша)
-                return cached[:limit]
+                # P0-fix: без [::limit], кеш уже содержит нужные данные
+                return [ScheduleRead(**item) for item in cached]
 
-        # Cache miss — из БД
         try:
             schedules = await self.crud.get_schedules(
                 db, skip=skip, limit=limit, group_id=group_id,
@@ -278,10 +286,9 @@ class ScheduleService:
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
-        # Записываем в кеш (только если skip==0 — первая страница)
         if skip == 0:
             dump_list = [self._model_dump_schedule(s) for s in schedules]
-            await self._cache_set_list(cache_key, dump_list, _LIST_TTL, redis)
+            await self._cache_set_list(cache_key, dump_list, LIST_TTL, redis)
 
         logger.info("list_schedules: count=%d", len(schedules))
         return schedules
@@ -292,40 +299,38 @@ class ScheduleService:
         schedule_id: int,
         data: ScheduleUpdate,
         redis: Optional[RedisDriver] = None,
-    ):
-        # Получаем текущую запись для инвалидации
+    ) -> object:
         schedule = await self.get_schedule_or_404(db, schedule_id, redis=redis)
-
-        old_group_id = schedule.group_id
-        old_subject_id = schedule.subject_id
+        old_group_id = schedule.group_id  # type: ignore[attr-defined]
+        old_subject_id = schedule.subject_id  # type: ignore[attr-defined]
 
         try:
             updated = await self.crud.update_schedule(db, schedule, data)
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        except SQLAlchemyError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Не удалось обновить расписание",
+            )
         if updated is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Расписание id={schedule_id} не найдено",
             )
 
-        # Инвалидация кеша
+        # P0-fix: инвалидируем деталь + все списки по старым и новым связям
         await self._invalidate_schedule_detail(schedule_id, redis)
-        # Инвалидация по старым связям
         await self._invalidate_by_ids(
-            group_id=old_group_id,
-            subject_id=old_subject_id,
-            redis=redis,
+            group_id=old_group_id, subject_id=old_subject_id, redis=redis,
         )
-        # Инвалидация по новым связям (если изменились)
-        new_group_id = updated.group_id
-        new_subject_id = updated.subject_id
+        new_group_id = updated.group_id  # type: ignore[attr-defined]
+        new_subject_id = updated.subject_id  # type: ignore[attr-defined]
         if new_group_id != old_group_id or new_subject_id != old_subject_id:
             await self._invalidate_by_ids(
-                group_id=new_group_id,
-                subject_id=new_subject_id,
-                redis=redis,
+                group_id=new_group_id, subject_id=new_subject_id, redis=redis,
             )
+        await self._invalidate_all_lists(redis)
 
         return updated
 
@@ -335,48 +340,27 @@ class ScheduleService:
         schedule_id: int,
         redis: Optional[RedisDriver] = None,
     ) -> None:
-        # Получаем текущую запись для инвалидации
         schedule = await self.get_schedule_or_404(db, schedule_id, redis=redis)
-        group_id = schedule.group_id
-        subject_id = schedule.subject_id
+        group_id = schedule.group_id  # type: ignore[attr-defined]
+        subject_id = schedule.subject_id  # type: ignore[attr-defined]
 
         try:
             await self.crud.delete_schedule(db, schedule)
         except ValueError as e:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(e)
+            ) from e
+        except SQLAlchemyError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Не удалось удалить расписание",
+            )
 
-        # Инвалидация кеша
         await self._invalidate_schedule_detail(schedule_id, redis)
-        await self._invalidate_by_ids(
-            group_id=group_id,
-            subject_id=subject_id,
-            redis=redis,
-        )
-        await self._invalidate_all_schedule_lists(redis)
+        await self._invalidate_by_ids(group_id=group_id, subject_id=subject_id, redis=redis)
+        await self._invalidate_all_lists(redis)
 
         logger.info("delete_schedule: удалено schedule.id=%s", schedule_id)
-
-    # ================================================================ #
-    #  Утилиты
-    # ================================================================ #
-
-    @staticmethod
-    def _build_integrity_error_detail(error: IntegrityError, data: ScheduleCreate) -> str:
-        text = str(error.orig).lower() if error.orig is not None else str(error).lower()
-        if "group_id" in text or "group" in text:
-            return f"Группа group_id={data.group_id} не существует или нарушено ограничение по группе"
-        if "subject_id" in text or "subject" in text:
-            return f"Предмет subject_id={data.subject_id} не существует или нарушено ограничение по предмету"
-        if "unique" in text or "duplicate" in text:
-            return "Такая запись расписания уже существует"
-        if "foreign key" in text or "fk" in text:
-            return "Ссылка на связанную запись не существует (проверьте group_id и subject_id)"
-        return "Не удалось создать расписание (нарушение целостности данных)"
-
-    @staticmethod
-    def _dict_to_schedule(data: dict):
-        """Восстановить объект из dict (возвращаем dict, FastAPI/pydantic обработает)."""
-        return data
 
 
 schedule_service = ScheduleService()

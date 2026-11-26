@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import logging
+import secrets
 from typing import Final
 
+import bcrypt
 from fastapi import HTTPException, status
+from sqlalchemy import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.auth.user_crud import user_crud
@@ -12,6 +16,8 @@ from schemas.auth.user_schema import UserCreate
 from services.auth.jwt_service import jwt_service
 
 logger = logging.getLogger(__name__)
+
+_RESERVED_CLAIMS = frozenset({"sub", "type", "exp", "iat", "role", "bot_id", "integration_id"})
 
 
 class AuthService:
@@ -24,22 +30,32 @@ class AuthService:
     async def authenticate_by_email(
             self, db: AsyncSession, email: str, password: str
     ) -> dict[str, str | int]:
-        logger.debug("authenticate_by_email: попытка входа email=%r", email)
+        logger.debug("authenticate_by_email: попытка входа")
+
         user = await self.crud.get_user_by_email(db, email=email)
+
         if user is None or not user.hashed_password:
-            logger.warning("authenticate_by_email: пользователь не найден или без пароля email=%r", email)
+            # Constant-time fallback: bcrypt против фейкового хеша
+            # предотвращает user enumeration по времени ответа
+            bcrypt.checkpw(
+                password.encode("utf-8"),
+                "$2b$12$KIXxGOBMPwkdSD1ACXq5IuZRCNRMtOAJsVKnOOmCyRiWNryeilKKm"
+            )
+            logger.warning("authenticate_by_email: пользователь не найден или без пароля")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Неверный email или пароль",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
         if not self.jwt.verify_password(password, user.hashed_password):
-            logger.warning("authenticate_by_email: неверный пароль email=%r", email)
+            logger.warning("authenticate_by_email: неверный пароль")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Неверный email или пароль",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
         access_token = self.jwt.create_access_token(user_id=user.id, role=user.role)
         refresh_token = self.jwt.create_refresh_token(user_id=user.id)
         logger.info("authenticate_by_email: успешный вход user.id=%s", user.id)
@@ -57,27 +73,46 @@ class AuthService:
             link_type: SocialNetworkLinkType,
             social_id: int,
             email: str | None = None,
+            name: str | None = None,
     ) -> dict[str, str | int | bool]:
         logger.debug("login_or_register_social: link_type=%s social_id=%r", link_type, social_id)
         user = await self.crud.get_user_by_social(db, link_type, social_id)
         is_new_user = False
         if user is None:
             is_new_user = True
-            logger.info("login_or_register_social: регистрация нового через %s social_id=%r", link_type.value, social_id)
+            logger.info("login_or_register_social: регистрация нового через %s", link_type.value)
             social_field = self.crud.get_social_field(link_type)
             safe_email = email or f"social_{link_type.value}_{social_id}@local.placeholder"
+            # P0-fix: name обязателен для UserCreate
+            resolved_name = name or safe_email.split("@")[0]
             create_data = {
                 social_field: social_id,
                 "email": safe_email,
+                "name": resolved_name,
                 "role": UserRole.USER.value,
             }
             try:
                 user = await self.crud.create_user(db, data=UserCreate(**create_data), role=UserRole.USER)
+            except IntegrityError as exc:
+                # P0-fix: email уже занят или social_id дублируется → 409
+                await db.rollback()
+                logger.warning("login_or_register_social: конфликт уникальности %s=%r", link_type.value, social_id)
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Этот аккаунт уже привязан к другому пользователю",
+                ) from exc
+            except SQLAlchemyError:
+                await db.rollback()
+                logger.exception("login_or_register_social: ошибка БД при создании")
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Не удалось выполнить регистрацию",
+                )
             except Exception as exc:
-                logger.exception("login_or_register_social: crud упал при создании social_id=%r", social_id)
+                logger.exception("login_or_register_social: непредвиденная ошибка при создании")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Не удалось зарегистрировать пользователя через социальную сеть",
+                    detail="Не удалось зарегистрировать пользователя",
                 ) from exc
         access_token = self.jwt.create_access_token(user_id=user.id, role=user.role)
         refresh_token = self.jwt.create_refresh_token(user_id=user.id)
@@ -98,12 +133,12 @@ class AuthService:
             password: str,
             full_name: str | None = None,
     ) -> dict[str, str | int]:
-        logger.debug("register_user: попытка регистрации email=%r", email)
+        logger.debug("register_user: попытка регистрации")
         existing = await self.crud.get_user_by_email(db, email=email)
         if existing is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Пользователь с email={email} уже существует",
+                detail="Пользователь с указанным email уже существует",
             )
         hashed_password = self.jwt.hash_password(password)
         create_data = {
@@ -114,15 +149,30 @@ class AuthService:
         }
         try:
             user = await self.crud.create_user(db, data=UserCreate(**create_data), role=UserRole.USER)
+        except IntegrityError as exc:
+            # P0-fix: email уже занят → 409, не 500
+            await db.rollback()
+            logger.warning("register_user: конфликт уникальности email=%r", email)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Пользователь с указанным email уже существует",
+            ) from exc
+        except SQLAlchemyError:
+            await db.rollback()
+            logger.exception("register_user: ошибка БД")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Не удалось выполнить регистрацию",
+            )
         except Exception as exc:
-            logger.exception("register_user: crud упал email=%r", email)
+            logger.exception("register_user: непредвиденная ошибка")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Не удалось зарегистрировать пользователя",
             ) from exc
         access_token = self.jwt.create_access_token(user_id=user.id, role=user.role)
         refresh_token = self.jwt.create_refresh_token(user_id=user.id)
-        logger.info("register_user: создан user.id=%s email=%r", user.id, email)
+        logger.info("register_user: создан user.id=%s", user.id)
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
