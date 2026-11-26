@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.study.user_subject_crud import user_subject_crud
 from models.study import UserSubject
-from schemas.study.study_schema import UserSubjectCreate, UserSubjectRead
+from schemas.study.study_schema import UserSubjectCreate
 
 logger = logging.getLogger(__name__)
 

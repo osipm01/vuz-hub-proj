@@ -16,7 +16,8 @@
       "Bash(docker compose config *)",
       "Bash(pip install *)",
       "Bash(.venv/bin/pip *)",
-      "Bash(.venv/bin/python3 *)"
+      "Bash(.venv/bin/python3 *)",
+      "Bash(find *)"
     ]
   },
   "$version": 3
