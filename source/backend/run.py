@@ -554,6 +554,11 @@ def _print_tui_menu() -> bool:
                 run(compose_cmd("run", "--rm", svc, "alembic", "upgrade", "head"), check=False)
             input("\nНажмите Enter для продолжения...")
 
+        elif choice == '19':
+            for svc in SERVICES:
+                run(compose_cmd("run", "--rm", svc, "alembic", "upgrade", "head"), check=False)
+            input("\nНажмите Enter для продолжения...")
+
         elif choice == '20':
             if HAS_RICH: console.print("\n[cyan]Выберите номер сервиса для shell:[/cyan]")
             else: print(f"\n{Fore.CYAN}Выберите номер сервиса для shell:{Style.RESET_ALL}")
