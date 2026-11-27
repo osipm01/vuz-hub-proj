@@ -44,13 +44,15 @@ class JWTService:
         except Exception:
             return False
 
-    def create_access_token(self, user_id: int, role: UserRole) -> str:
+    def create_access_token(self, user_id: int, role: UserRole | str) -> str:
+        # role может прийти как str (из БД) или как UserRole — нормализуем к enum
+        role_enum = role if isinstance(role, UserRole) else UserRole(role)
         expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
         to_encode: dict[str, Any] = {
             "sub": str(user_id),
-            "role": role.value,
+            "role": role_enum.value,
             "exp": expire,
             "iat": datetime.now(timezone.utc),
         }

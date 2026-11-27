@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import BigInteger, DateTime, Enum as SAEnum, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from enums.user_enums import UserRole
@@ -19,7 +19,17 @@ class User(Base):
     hashed_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER)
+    role: Mapped[UserRole] = mapped_column(
+        SAEnum(
+            UserRole,
+            native_enum=False,
+            length=20,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+            name="user_role_enum",
+        ),
+        nullable=False,
+        default=UserRole.USER,
+    )
 
     telegram_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True, nullable=True)
     VK_id: Mapped[Optional[int]] = mapped_column(BigInteger, unique=True, nullable=True)

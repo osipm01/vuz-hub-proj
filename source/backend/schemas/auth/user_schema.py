@@ -18,7 +18,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     name: str
     password: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[UserRole] = None
     group_id: Optional[int] = None
     telegram_id: Optional[int] = None
     VK_id: Optional[int] = None
